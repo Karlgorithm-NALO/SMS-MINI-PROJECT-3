@@ -1,0 +1,205 @@
+// One stroke-based icon set, so every glyph on the page shares a weight and style.
+
+type IconProps = { className?: string };
+
+function Icon({ className = "h-4 w-4", viewBox = "0 0 16 16", strokeWidth = 1.6, children }: IconProps & { viewBox?: string; strokeWidth?: number; children: React.ReactNode }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox={viewBox}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={strokeWidth}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`shrink-0 ${className}`}
+    >
+      {children}
+    </svg>
+  );
+}
+
+export const CheckIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={2.2}>
+    <path d="m3.5 8.5 3 3 6-7" />
+  </Icon>
+);
+
+export const XCircleIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={1.8}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="m6 6 4 4m0-4-4 4" />
+  </Icon>
+);
+
+export const AlertIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={1.8}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 5v3.5M8 11v.01" />
+  </Icon>
+);
+
+export const WalletXIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={1.8}>
+    <path d="M2.5 5c0-.8.7-1.5 1.5-1.5h7.5V6M2.5 5v6.5c0 .8.7 1.5 1.5 1.5h9V6H4c-.8 0-1.5-.2-1.5-1z" />
+    <path d="m8 8.25 2.5 2.5m0-2.5L8 10.75" />
+  </Icon>
+);
+
+export const FileXIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={1.7}>
+    <path d="M4 1.75h5.5L12.5 4.75V14.25H4z" />
+    <path d="m6.5 8.25 3 3m0-3-3 3" />
+  </Icon>
+);
+
+export const WalletIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 20 20">
+    <path d="M3.25 6.25c0-1.1.9-2 2-2h9.5v3M3.25 6.25v8.5c0 1.1.9 2 2 2h11.5v-9.5H5.25a2 2 0 0 1-2-1z" />
+    <circle cx="13.5" cy="12" r="1" fill="currentColor" stroke="none" />
+  </Icon>
+);
+
+export const UploadIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="M12 15.5V4M7.5 8.5 12 4l4.5 4.5M5 14.5v4.25c0 .69.56 1.25 1.25 1.25h11.5c.69 0 1.25-.56 1.25-1.25V14.5" />
+  </Icon>
+);
+
+export const DownloadIcon = ({ className }: IconProps) => (
+  <Icon className={className}>
+    <path d="M8 2.5v8M4.75 7.5 8 10.75l3.25-3.25M2.75 12.5v.75c0 .41.34.75.75.75h9c.41 0 .75-.34.75-.75v-.75" />
+  </Icon>
+);
+
+export const SheetIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.7}>
+    <path d="M6 2.75h8.25L18.75 7.25V21.25H6z" />
+    <path d="M14 2.75V7.5h4.75M9 11.5h6.5M9 14.75h6.5M9 18h4" />
+  </Icon>
+);
+
+export const ArrowRightIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 20 20" strokeWidth={2}>
+    <path d="M3.5 10h12.5M11 5l5 5-5 5" />
+  </Icon>
+);
+
+export const ArrowDownIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={2}>
+    <path d="M8 3v10M4 9l4 4 4-4" />
+  </Icon>
+);
+
+export const ChevronDownIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={1.8}>
+    <path d="m4 6 4 4 4-4" />
+  </Icon>
+);
+
+export const TableIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 20 20" strokeWidth={1.6}>
+    <rect x="3" y="3.5" width="14" height="13" rx="2" />
+    <path d="M3 8h14M3 12.25h14M8 8v8.5" />
+  </Icon>
+);
+
+export const RepeatIcon = ({ className }: IconProps) => (
+  <Icon className={className}>
+    <path d="M11.5 2.5 13.5 4.5l-2 2M13.5 4.5h-8a3 3 0 0 0-3 3M4.5 13.5l-2-2 2-2M2.5 11.5h8a3 3 0 0 0 3-3" />
+  </Icon>
+);
+
+export const ClockIcon = ({ className }: IconProps) => (
+  <Icon className={className} strokeWidth={1.5}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M8 4.75V8l2.25 1.5" />
+  </Icon>
+);
+
+export const PaperPlaneIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="m22 2-7 20-4-9-9-4Z" />
+    <path d="M22 2 11 13" />
+  </Icon>
+);
+
+export const RefreshIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+    <path d="M3 3v5h5" />
+    <path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16" />
+    <path d="M16 16h5v5" />
+  </Icon>
+);
+
+export const PhoneIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
+  </Icon>
+);
+
+export const MessageSquareIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+  </Icon>
+);
+
+export const CopyIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </Icon>
+);
+
+export const SignalIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="M2 20h.01" />
+    <path d="M7 20v-4" />
+    <path d="M12 20v-8" />
+    <path d="M17 20V8" />
+    <path d="M22 4v16" />
+  </Icon>
+);
+
+export const WebhookIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="M18 16.98h4v5h-4z" />
+    <path d="M2 16.98h4v5H2z" />
+    <path d="M10 2.02h4v5h-4z" />
+    <path d="m14 7.02 4 9.96" />
+    <path d="M6 16.98 10 7.02" />
+  </Icon>
+);
+
+export const SpinnerIcon = ({ className = "h-4 w-4" }: IconProps) => (
+  <svg aria-hidden viewBox="0 0 16 16" fill="none" className={`shrink-0 motion-safe:animate-spin ${className}`}>
+    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />
+    <path d="M14 8a6 6 0 0 0-6-6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+  </svg>
+);
+
+/** The SikaLedger mark: a ledger page with its margin rule, on brand orange. */
+export function LogoMark({ className = "h-9 w-9" }: IconProps) {
+  return (
+    <svg aria-hidden viewBox="0 0 36 36" className={`shrink-0 ${className}`}>
+      <rect width="36" height="36" rx="10" className="fill-accent" />
+      <rect x="9" y="8" width="3.5" height="20" rx="1.75" fill="#FFFFFF" />
+      <rect x="16" y="10" width="11" height="3" rx="1.5" fill="#FFFFFF" />
+      <rect x="16" y="16.5" width="11" height="3" rx="1.5" fill="#FFFFFF" />
+      <rect x="16" y="23" width="7" height="3" rx="1.5" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+/** The same mark drawn as a faint emblem on the balance card. */
+export function Emblem({ className }: IconProps) {
+  return (
+    <svg aria-hidden viewBox="0 0 300 300" className={className}>
+      <rect x="40" y="20" width="34" height="240" rx="17" fill="#FFFFFF" />
+      <rect x="110" y="50" width="160" height="34" rx="17" fill="#FFFFFF" />
+      <rect x="110" y="130" width="160" height="34" rx="17" fill="#FFFFFF" />
+      <rect x="110" y="210" width="100" height="34" rx="17" fill="#FFFFFF" />
+    </svg>
+  );
+}
