@@ -4,61 +4,40 @@ import defaultTheme from "tailwindcss/defaultTheme";
 const config: Config = {
   content: ["./app/**/*.{ts,tsx}", "./components/**/*.{ts,tsx}"],
   theme: {
-    extend: {
-      colors: {
-        canvas: "#0B0F19", // modern dark-indigo / sleek backdrop
-        "canvas-light": "#F8FAFC",
-        surface: {
-          DEFAULT: "#111827",
-          muted: "#1F2937",
-          light: "#FFFFFF",
-        },
-        card: {
-          DEFAULT: "rgba(17, 24, 39, 0.75)",
-          border: "rgba(255, 255, 255, 0.08)",
-        },
-        brand: {
-          50: "#FFF7ED",
-          100: "#FFEDD5",
-          400: "#FB923C",
-          500: "#F97316", // vivid energetic orange
-          600: "#EA580C",
-          700: "#C2410C",
-        },
-        ink: {
-          DEFAULT: "#0F172A",
-          soft: "#64748B",
-          faint: "#94A3B8",
-          body: "#334155",
-        },
-        accent: {
-          DEFAULT: "#F97316",
-          deep: "#EA580C",
-          tint: "#FFEDD5",
-          wash: "#FFF7ED",
-        },
-        network: {
-          mtn: "#EAB308",
-          "mtn-bg": "#FEF08A",
-          telecel: "#EF4444",
-          "telecel-bg": "#FEE2E2",
-          airteltigo: "#3B82F6",
-          "airteltigo-bg": "#DBEAFE",
-        },
+    // The brand palette replaces Tailwind's, so every colour on the page is one of these.
+    colors: {
+      transparent: "transparent",
+      current: "currentColor",
+      white: "#FFFFFF",
+      black: "#000000",
+      canvas: "#F6F5F2", // warm page background
+      surface: { DEFAULT: "#FFFFFF", muted: "#FBFAF8" },
+      chip: { DEFAULT: "#F3F2EE", strong: "#F0EEE9" },
+      ink: { DEFAULT: "#0F1B33", soft: "#5B6478", faint: "#8A92A3", body: "#3D4659" },
+      accent: {
+        DEFAULT: "#F26522", // brand orange
+        deep: "#C6531C", // the balance card; white text on it passes WCAG AA
+        tint: "#FDECE4",
+        wash: "#FFF8F4",
       },
+      success: { DEFAULT: "#22A05B", fg: "#18794E", bg: "#E7F5EC" },
+      danger: { DEFAULT: "#D14343", fg: "#B42D2D", bg: "#FDECEC", note: "#5B2A2A" },
+      slate: { fg: "#4B5468", bg: "#F1F0EC" },
+      repeat: { fg: "#4B45C6", bg: "#EEEEFC" },
+      disabled: { fg: "#9AA0AC", bg: "#E9E8E4" },
+      network: { mtn: "#FFCC00", "mtn-ink": "#1B1B1B", telecel: "#E30613", airteltigo: "#1F4FA3" },
+    },
+    extend: {
       fontFamily: {
         sans: ["var(--font-geist-sans)", ...defaultTheme.fontFamily.sans],
         mono: ["var(--font-geist-mono)", ...defaultTheme.fontFamily.mono],
-        display: ["var(--font-bricolage)", "Inter", ...defaultTheme.fontFamily.sans],
-        signature: ["var(--font-signature)", "cursive"],
+        display: ["var(--font-bricolage)", "Trebuchet MS", ...defaultTheme.fontFamily.sans],
+        signature: ["var(--font-signature)", "Brush Script MT", "cursive"],
       },
       boxShadow: {
-        card: "0 4px 20px -2px rgba(0, 0, 0, 0.06), 0 2px 6px -1px rgba(0, 0, 0, 0.04)",
-        "card-hover": "0 10px 25px -3px rgba(0, 0, 0, 0.1), 0 4px 10px -2px rgba(0, 0, 0, 0.05)",
-        glow: "0 0 25px -5px rgba(249, 115, 22, 0.35)",
-        "glow-success": "0 0 25px -5px rgba(34, 197, 94, 0.35)",
+        card: "0 1px 2px rgba(15, 27, 51, 0.04), 0 18px 40px -24px rgba(15, 27, 51, 0.18)",
         hero: "0 30px 60px -30px rgba(169, 71, 24, 0.6)",
-        pop: "0 20px 30px -10px rgba(15, 23, 42, 0.15)",
+        pop: "0 12px 32px -12px rgba(15, 27, 51, 0.35)",
         primary: "0 12px 24px -12px rgba(15, 27, 51, 0.6)",
       },
       keyframes: {

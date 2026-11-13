@@ -2,17 +2,16 @@
 
 import { useMemo, useState } from "react";
 import type { SendSmsResult } from "@/lib/types";
-import { calculateSmsSegments, detectCarrier, parseRecipients, validateSmsForm } from "@/lib/validate";
-import { CheckIcon, PaperPlaneIcon, PhoneIcon, SendIcon, SparklesIcon, SpinnerIcon, XCircleIcon, ZapIcon } from "./icons";
+import { calculateSmsSegments, parseRecipients, validateSmsForm } from "@/lib/validate";
+import { PaperPlaneIcon, PhoneIcon, SpinnerIcon, XCircleIcon } from "./icons";
 import SmsFeedback from "./SmsFeedback";
 
 type Props = {
   allowedSenderIds: string[];
   onMessageSent: () => void;
-  balance?: number;
 };
 
-export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance = 500 }: Props) {
+export default function SendSmsForm({ allowedSenderIds, onMessageSent }: Props) {
   const [numbersInput, setNumbersInput] = useState("");
   const [senderId, setSenderId] = useState(allowedSenderIds[0] || "");
   const [message, setMessage] = useState("");
@@ -30,15 +29,14 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
     return calculateSmsSegments(message);
   }, [message]);
 
-  const totalCreditsRequired = Math.max(1, recipientAnalysis.validNumbers.length) * smsSegments.segmentCount;
-  const remainingAfterSend = Math.max(0, balance - totalCreditsRequired);
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setValidationError(null);
     setFeedback(null);
 
-    // 1. Client-side Pre-Flight Validation
+    // 1. Client-side Pre-Flight Validation (Requirement 6)
+    // Empty messages, missing sender IDs and badly formatted numbers are rejected
+    // with a clear message before calling the API.
     const validation = validateSmsForm({
       numbersInput,
       senderId,
@@ -51,7 +49,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
       return;
     }
 
-    // 2. Real Sending via Backend API
+    // 2. Real Sending via Backend API (Requirement 2)
     setIsSending(true);
 
     try {
@@ -69,6 +67,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
       setFeedback(data);
 
       if (data.success) {
+        // Message sent successfully, clear message box (keep sender ID and number for convenience)
         setMessage("");
         onMessageSent();
       }
@@ -92,59 +91,34 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
     setValidationError(null);
   }
 
-  // Chars progress percentage in current segment
-  const charsUsedInCurrentSegment = smsSegments.charCount % smsSegments.segmentCapacity || (smsSegments.charCount > 0 ? smsSegments.segmentCapacity : 0);
-  const progressPercent = Math.min(100, Math.round((charsUsedInCurrentSegment / smsSegments.segmentCapacity) * 100));
-
   return (
-    <div className="rounded-3xl border border-slate-200/90 bg-white p-6 sm:p-8 shadow-card transition-all">
-      {/* Form Header */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between border-b border-slate-100 pb-5">
+    <div className="rounded-[28px] border border-ink/[0.08] bg-surface p-5 sm:p-7 shadow-card">
+      <div className="flex items-center justify-between border-b border-ink/[0.06] pb-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h2 className="font-display text-xl font-bold tracking-tight text-slate-900 sm:text-2xl">
-              Send Live SMS
-            </h2>
-            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-              Direct Gateway
-            </span>
-          </div>
-          <p className="mt-1 text-xs text-slate-500 sm:text-sm">
-            Dispatches live SMS through Nalo Solutions with automatic DLR tracking.
+          <h2 className="font-display text-xl font-bold tracking-[-0.02em] text-ink sm:text-2xl">
+            Send Real SMS
+          </h2>
+          <p className="mt-0.5 text-xs text-ink-soft sm:text-sm">
+            Dispatches live SMS through the Nalo SMS Gateway with delivery callbacks.
           </p>
         </div>
-
-        {/* Quick Sample Chips */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-1">
-          <span className="text-[11px] font-semibold text-slate-400">Quick fill:</span>
-          <button
-            type="button"
-            onClick={() => handleUseSample("233558816150", "Testing Nalo delivery webhook response!")}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Karlson (0558816150)
-          </button>
-          <button
-            type="button"
-            onClick={() => handleUseSample("233241234567, 233501234567", "Bulk notification test message.")}
-            className="rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-          >
-            Multi-recipient
-          </button>
-        </div>
+        <span className="hidden items-center gap-1.5 rounded-full bg-accent-tint px-3 py-1 text-xs font-semibold text-accent-deep sm:inline-flex">
+          <span className="h-2 w-2 rounded-full bg-accent animate-pulse" />
+          Nalo Gateway
+        </span>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-6 space-y-6">
-        {/* Validation Error Alert */}
+      <form onSubmit={handleSubmit} className="mt-5 space-y-5">
+        {/* Validation Error Alert before API call */}
         {validationError && (
           <div
             role="alert"
-            className="flex items-start gap-3 rounded-2xl bg-rose-50 p-4 text-rose-900 motion-safe:animate-rise-in border border-rose-200"
+            className="flex items-start gap-3 rounded-2xl bg-danger-bg/90 p-4 text-danger-fg motion-safe:animate-rise-in border border-danger/20"
           >
-            <XCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-rose-600" />
+            <XCircleIcon className="mt-0.5 h-5 w-5 shrink-0 text-danger-fg" />
             <div className="text-sm">
               <p className="font-bold">Validation Warning</p>
-              <p className="mt-0.5 text-xs leading-relaxed text-rose-700">{validationError}</p>
+              <p className="mt-0.5 leading-relaxed text-danger-note">{validationError}</p>
             </div>
           </div>
         )}
@@ -154,17 +128,10 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
 
         {/* 1. Sender ID Dropdown */}
         <div>
-          <div className="flex items-center justify-between">
-            <label htmlFor="sender-id" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              Sender ID <span className="text-orange-600">*</span>
-            </label>
-            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
-              <CheckIcon className="h-3 w-3 text-emerald-600" />
-              Approved on Nalo Account
-            </span>
-          </div>
-
-          <div className="mt-2">
+          <label htmlFor="sender-id" className="block text-xs font-bold uppercase tracking-wider text-ink-soft">
+            Sender ID <span className="text-accent">*</span>
+          </label>
+          <div className="mt-1.5">
             {allowedSenderIds.length > 0 ? (
               <select
                 id="sender-id"
@@ -174,8 +141,11 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
                   setValidationError(null);
                 }}
                 disabled={isSending}
-                className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3.5 text-sm font-semibold text-slate-900 shadow-sm transition-all hover:border-slate-300 focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10"
+                className="w-full rounded-2xl border border-ink/[0.12] bg-canvas/40 px-4 py-3 text-sm font-semibold text-ink transition-colors hover:border-ink/20 focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
               >
+                <option value="" disabled>
+                  -- Select an allowed Sender ID --
+                </option>
                 {allowedSenderIds.map((id) => (
                   <option key={id} value={id}>
                     {id} (Approved Sender ID)
@@ -184,24 +154,30 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               </select>
             ) : (
               <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
-                No Sender IDs configured. Set <code className="font-mono font-bold">SENDER_IDS</code> in your environment.
+                No Sender IDs configured yet. Set <code className="font-mono font-bold">SENDER_IDS</code> in your environment or .env file (e.g. SENDER_IDS=NALO,MYBRAND).
               </div>
             )}
           </div>
+          <p className="mt-1 text-[11px] text-ink-faint">
+            Only approved Sender IDs registered on your Nalo account will deliver.
+          </p>
         </div>
 
         {/* 2. Recipient Phone Numbers Field */}
         <div>
           <div className="flex items-center justify-between">
-            <label htmlFor="recipient-numbers" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              Recipient Phone Number(s) <span className="text-orange-600">*</span>
+            <label htmlFor="recipient-numbers" className="block text-xs font-bold uppercase tracking-wider text-ink-soft">
+              Recipient Phone Number(s) <span className="text-accent">*</span>
             </label>
-            <span className="text-[11px] text-slate-400">
-              Ghana International format (e.g. <strong>233XXXXXXXXX</strong>)
-            </span>
+            <button
+              type="button"
+              onClick={() => handleUseSample("233241234567, 233501234567", "Hello from Nalo SMS Platform! This is a test message.")}
+              className="text-[11px] font-semibold text-accent hover:underline"
+            >
+              Fill sample numbers
+            </button>
           </div>
-
-          <div className="relative mt-2">
+          <div className="relative mt-1.5">
             <input
               id="recipient-numbers"
               type="text"
@@ -210,39 +186,37 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
                 setNumbersInput(e.target.value);
                 setValidationError(null);
               }}
-              placeholder="e.g. 233558816150, 233241234567"
+              placeholder="e.g. 233241234567, 233501234567"
               disabled={isSending}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 px-4 py-3.5 font-mono text-sm text-slate-900 shadow-sm transition-all placeholder:font-sans placeholder:text-slate-400 hover:border-slate-300 focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10"
+              className="w-full rounded-2xl border border-ink/[0.12] bg-canvas/40 px-4 py-3 font-mono text-sm text-ink transition-colors placeholder:font-sans placeholder:text-ink-faint hover:border-ink/20 focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
-            <div className="pointer-events-none absolute inset-y-0 right-4 flex items-center text-slate-400">
+            <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-ink-faint">
               <PhoneIcon className="h-4 w-4" />
             </div>
           </div>
+          <p className="mt-1 text-[11px] text-ink-faint">
+            One or more numbers, comma-separated, in international format (e.g. <strong>233XXXXXXXXX</strong>). Digits only.
+          </p>
 
-          {/* Live parsed badges with Detected Carrier Operator */}
+          {/* Live parsed badges for instant feedback */}
           {numbersInput.trim().length > 0 && (
-            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
-              {recipientAnalysis.validNumbers.map((num) => {
-                const carrier = detectCarrier(num);
-                return (
-                  <span
-                    key={num}
-                    className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-mono font-semibold text-slate-800 shadow-sm"
-                  >
-                    <span className={`rounded px-1 py-0.2 text-[10px] font-bold ${carrier.badge}`}>
-                      {carrier.name}
-                    </span>
-                    {num}
-                  </span>
-                );
-              })}
+            <div className="mt-2.5 flex flex-wrap gap-1.5">
+              {recipientAnalysis.validNumbers.map((num) => (
+                <span
+                  key={num}
+                  className="inline-flex items-center gap-1 rounded-lg border border-success/30 bg-success-bg px-2.5 py-1 text-xs font-mono font-medium text-success-fg"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                  {num}
+                </span>
+              ))}
               {recipientAnalysis.invalidEntries.map((inv, idx) => (
                 <span
                   key={idx}
-                  className="inline-flex items-center gap-1 rounded-xl border border-rose-300 bg-rose-50 px-2.5 py-1 text-xs font-mono font-medium text-rose-800"
+                  className="inline-flex items-center gap-1 rounded-lg border border-danger/30 bg-danger-bg px-2.5 py-1 text-xs font-mono font-medium text-danger-fg"
                   title={inv.error}
                 >
-                  <span className="h-1.5 w-1.5 rounded-full bg-rose-600" />
+                  <span className="h-1.5 w-1.5 rounded-full bg-danger" />
                   {inv.raw} ({inv.error})
                 </span>
               ))}
@@ -250,24 +224,23 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
           )}
         </div>
 
-        {/* 3. Message Box & Live Segment / Character Counter */}
+        {/* 3. Message Box with Live Character Counter & Segment Counter */}
         <div>
           <div className="flex items-center justify-between">
-            <label htmlFor="sms-message" className="block text-xs font-bold uppercase tracking-wider text-slate-600">
-              SMS Message Content <span className="text-orange-600">*</span>
+            <label htmlFor="sms-message" className="block text-xs font-bold uppercase tracking-wider text-ink-soft">
+              SMS Message Content <span className="text-accent">*</span>
             </label>
-            <div className="flex items-center gap-2 text-xs font-mono">
-              <span className="text-slate-500">
-                Chars: <strong className="text-slate-900">{smsSegments.charCount}</strong>
+            <div className="text-xs font-mono text-ink-soft">
+              <span className={`font-bold ${smsSegments.charCount > 160 ? "text-accent-deep" : "text-ink"}`}>
+                {smsSegments.charCount}
               </span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-500">
-                Segment: <strong className="text-orange-600">{smsSegments.segmentCount}</strong>
+              <span className="text-ink-faint">
+                {" "}
+                / {smsSegments.segmentCapacity} chars
               </span>
             </div>
           </div>
-
-          <div className="mt-2">
+          <div className="mt-1.5">
             <textarea
               id="sms-message"
               rows={4}
@@ -278,59 +251,45 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               }}
               placeholder="Type your SMS message here..."
               disabled={isSending}
-              className="w-full rounded-2xl border border-slate-200 bg-slate-50/50 p-4 font-sans text-sm text-slate-900 shadow-sm transition-all placeholder:text-slate-400 hover:border-slate-300 focus:border-orange-500 focus:bg-white focus:outline-none focus:ring-4 focus:ring-orange-500/10"
+              className="w-full rounded-2xl border border-ink/[0.12] bg-canvas/40 p-4 text-sm text-ink transition-colors placeholder:text-ink-faint hover:border-ink/20 focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
             />
           </div>
 
-          {/* Character visual progress gauge */}
-          <div className="mt-2">
-            <div className="h-1.5 w-full rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className={`h-full transition-all duration-300 ${
-                  progressPercent > 90 ? "bg-amber-500" : "bg-orange-500"
-                }`}
-                style={{ width: `${progressPercent}%` }}
-              />
-            </div>
-          </div>
-
-          {/* Dynamic Credit Cost & Encoding Info */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-xs">
-            <div className="flex items-center gap-2 text-slate-500">
-              <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-700">
-                {smsSegments.isUnicode ? "Unicode (70 chars/seg)" : "GSM 7-bit (160 chars/seg)"}
+          {/* Live Segment and Encoding Indicators */}
+          <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-ink-soft">
+              <span className="inline-flex items-center rounded-md bg-chip px-2 py-0.5 font-medium text-ink-body">
+                {smsSegments.segmentCount} SMS {smsSegments.segmentCount === 1 ? "segment" : "segments"}
               </span>
-              <span>
-                {smsSegments.charsRemainingInSegment} chars left in segment
+              <span className="text-ink-faint">•</span>
+              <span className="text-ink-faint">
+                {smsSegments.charsRemainingInSegment} chars left in current segment
               </span>
             </div>
-
-            {/* Estimated credits pill */}
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-50 px-3 py-1 font-semibold text-emerald-900 flex items-center gap-1.5">
-              <span className="text-[11px]">Cost:</span>
-              <strong className="text-emerald-950 font-mono">{totalCreditsRequired} Credit{totalCreditsRequired > 1 ? "s" : ""}</strong>
-              <span className="text-slate-400">·</span>
-              <span className="text-[11px] text-emerald-700">Bal after send: <strong className="font-mono">{remainingAfterSend}</strong></span>
-            </div>
+            {smsSegments.isUnicode && (
+              <span className="rounded-md bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">
+                Unicode mode (70 chars/SMS)
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Submit Button */}
-        <div>
+        {/* 4. Send Button */}
+        <div className="pt-2">
           <button
             type="submit"
             disabled={isSending}
-            className="group relative flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-600 via-orange-500 to-amber-500 py-4 text-sm font-bold text-white shadow-glow transition-all hover:from-orange-700 hover:to-amber-600 hover:shadow-pop active:scale-[0.99] disabled:opacity-50 disabled:pointer-events-none"
+            className="flex w-full items-center justify-center gap-2 rounded-2xl bg-accent px-6 py-3.5 text-base font-bold text-white shadow-primary transition-all hover:bg-accent-deep active:scale-[0.99] disabled:opacity-60 disabled:cursor-not-allowed"
           >
             {isSending ? (
               <>
-                <SpinnerIcon className="h-4 w-4 animate-spin text-white" />
-                <span>Submitting to Nalo Solutions...</span>
+                <SpinnerIcon className="h-5 w-5" />
+                <span>Dispatching via Nalo Gateway...</span>
               </>
             ) : (
               <>
-                <SendIcon className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
-                <span>Send Real SMS Now</span>
+                <PaperPlaneIcon className="h-5 w-5" />
+                <span>Send SMS Now</span>
               </>
             )}
           </button>
