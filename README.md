@@ -15,7 +15,7 @@ _by Karlson_
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-0F1B33?logo=tailwindcss&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests Passing](https://img.shields.io/badge/tests-16_passing-22A05B)
+![Tests Passing](https://img.shields.io/badge/tests-17_passing-22A05B)
 
 </div>
 
@@ -26,6 +26,15 @@ _by Karlson_
 A modern web platform that sends real SMS through the **Nalo Solutions SMS Gateway** and tracks live delivery reports (DLR) as callbacks return.
 
 Built with Next.js 14 (App Router, TypeScript), Tailwind CSS, and robust persistent storage (**PostgreSQL with dedicated Docker volume** and fallback SQLite support). Containerized with Docker and Docker Compose for zero-friction single-command deployment.
+
+---
+
+## Live Deployment
+
+- **Live Public URL:** [https://sms-mini-project-3.onrender.com](https://sms-mini-project-3.onrender.com)
+- **Deployment Platform:** Render (Docker Web Service)
+- **GitHub Repository:** [https://github.com/Karlgorithm-NALO/SMS-MINI-PROJECT-3](https://github.com/Karlgorithm-NALO/SMS-MINI-PROJECT-3)
+- **DLR Webhook Endpoint:** `https://sms-mini-project-3.onrender.com/api/callback`
 
 ## Features
 
