@@ -231,3 +231,22 @@ export function Emblem({ className }: IconProps) {
     </svg>
   );
 }
+
+/** Ghana National Flag with central black star */
+export function GhanaFlag({ className = "h-4 w-6" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 36 24"
+      className={`shrink-0 overflow-hidden rounded-sm shadow-xs ${className}`}
+      aria-label="Ghana Flag"
+    >
+      <rect width="36" height="8" fill="#CE1126" />
+      <rect y="8" width="36" height="8" fill="#FCD116" />
+      <rect y="16" width="36" height="8" fill="#006B3F" />
+      <polygon
+        points="18,8.2 19.3,11.8 23.2,11.8 20.1,14.1 21.3,17.7 18,15.4 14.7,17.7 15.9,14.1 12.8,11.8 16.7,11.8"
+        fill="#000000"
+      />
+    </svg>
+  );
+}

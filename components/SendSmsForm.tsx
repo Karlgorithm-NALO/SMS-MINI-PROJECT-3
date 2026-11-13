@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from "react";
 import type { SendSmsResult } from "@/lib/types";
-import { calculateSmsSegments, detectCarrier, parseRecipients, validateSmsForm } from "@/lib/validate";
-import { PaperPlaneIcon, PhoneIcon, SpinnerIcon, XCircleIcon } from "./icons";
+import { calculateSmsSegments, detectCarrier, formatPhoneNumber, parseRecipients, validateSmsForm } from "@/lib/validate";
+import { GhanaFlag, PaperPlaneIcon, SpinnerIcon, XCircleIcon } from "./icons";
 import SmsFeedback from "./SmsFeedback";
 
 type Props = {
@@ -13,12 +13,104 @@ type Props = {
 };
 
 export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance = null }: Props) {
-  const [numbersInput, setNumbersInput] = useState("");
+  const [phoneDigits, setPhoneDigits] = useState("");
+  const [recipientsList, setRecipientsList] = useState<string[]>([]);
   const [senderId, setSenderId] = useState(allowedSenderIds[0] || "");
   const [message, setMessage] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [feedback, setFeedback] = useState<SendSmsResult | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+
+  // Clean Ghana local digits (strips leading 0, strips 233, max 9 digits)
+  function cleanGhanaLocalDigits(input: string): string {
+    let digits = input.replace(/\D/g, "");
+    if (digits.startsWith("233")) {
+      digits = digits.slice(3);
+    }
+    while (digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
+    return digits.slice(0, 9);
+  }
+
+  // Current carrier detected as user types
+  const currentCarrier = useMemo(() => {
+    if (phoneDigits.length >= 2) {
+      return detectCarrier(`233${phoneDigits}`);
+    }
+    return null;
+  }, [phoneDigits]);
+
+  // All combined numbers formatted as 233XXXXXXXXX
+  const allRecipientNumbers = useMemo(() => {
+    const list = [...recipientsList];
+    if (phoneDigits.length === 9) {
+      const current = `233${phoneDigits}`;
+      if (!list.includes(current)) {
+        list.push(current);
+      }
+    }
+    return list;
+  }, [recipientsList, phoneDigits]);
+
+  // Combined string passed to validator and backend
+  const numbersInput = useMemo(() => {
+    return allRecipientNumbers.join(", ");
+  }, [allRecipientNumbers]);
+
+  function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value;
+
+    // If pasted multiple comma/space/newline separated numbers
+    if (raw.includes(",") || raw.includes(";") || raw.includes("\n")) {
+      const parts = raw.split(/[,;\n\r]+/).map((p) => p.trim()).filter(Boolean);
+      const newNumbers: string[] = [];
+      let lastUnfinished = "";
+
+      for (let i = 0; i < parts.length; i++) {
+        const cleaned = cleanGhanaLocalDigits(parts[i]);
+        if (cleaned.length === 9) {
+          newNumbers.push(`233${cleaned}`);
+        } else if (i === parts.length - 1) {
+          lastUnfinished = cleaned;
+        }
+      }
+
+      if (newNumbers.length > 0) {
+        setRecipientsList((prev) => Array.from(new Set([...prev, ...newNumbers])));
+      }
+      setPhoneDigits(lastUnfinished);
+      setValidationError(null);
+      return;
+    }
+
+    // Normal single-number typing: leading zero automatically disappears, max 9 digits
+    const cleaned = cleanGhanaLocalDigits(raw);
+    setPhoneDigits(cleaned);
+    setValidationError(null);
+  }
+
+  function addCurrentPhoneToRecipients() {
+    if (phoneDigits.length === 9) {
+      const formatted = `233${phoneDigits}`;
+      if (!recipientsList.includes(formatted)) {
+        setRecipientsList((prev) => [...prev, formatted]);
+      }
+      setPhoneDigits("");
+      setValidationError(null);
+    }
+  }
+
+  function removeRecipient(numToRemove: string) {
+    setRecipientsList((prev) => prev.filter((n) => n !== numToRemove));
+  }
+
+  function handleUseSample(sampleLocal9: string, sampleMsg: string) {
+    const cleaned = cleanGhanaLocalDigits(sampleLocal9);
+    setPhoneDigits(cleaned);
+    setMessage(sampleMsg);
+    setValidationError(null);
+  }
 
   // Live parsed recipient numbers
   const recipientAnalysis = useMemo(() => {
@@ -35,9 +127,20 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
     setValidationError(null);
     setFeedback(null);
 
-    // 1. Client-side Pre-Flight Validation (Requirement 6)
-    // Empty messages, missing sender IDs and badly formatted numbers are rejected
-    // with a clear message before calling the API.
+    // If user has typed partial digits (e.g. 5 out of 9 digits)
+    if (phoneDigits.length > 0 && phoneDigits.length < 9) {
+      setValidationError(
+        `Incomplete phone number: please enter all 9 digits (currently ${phoneDigits.length}/9 digits entered).`
+      );
+      return;
+    }
+
+    if (allRecipientNumbers.length === 0) {
+      setValidationError("Please enter a valid 9-digit Ghanaian phone number (e.g. 55 881 6150).");
+      return;
+    }
+
+    // Client-side Pre-Flight Validation (Requirement 6)
     const validation = validateSmsForm({
       numbersInput,
       senderId,
@@ -50,7 +153,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
       return;
     }
 
-    // 2. Real Sending via Backend API (Requirement 2)
+    // Real Sending via Backend API (Requirement 2)
     setIsSending(true);
 
     try {
@@ -68,7 +171,6 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
       setFeedback(data);
 
       if (data.success) {
-        // Message sent successfully, clear message box (keep sender ID and number for convenience)
         setMessage("");
         onMessageSent();
       }
@@ -84,12 +186,6 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
     } finally {
       setIsSending(false);
     }
-  }
-
-  function handleUseSample(sampleNumber: string, sampleMsg: string) {
-    setNumbersInput(sampleNumber);
-    setMessage(sampleMsg);
-    setValidationError(null);
   }
 
   return (
@@ -164,17 +260,17 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
           </p>
         </div>
 
-        {/* 2. Recipient Phone Numbers Field */}
+        {/* 2. Recipient Phone Numbers Field with Ghana Flag +233 prefix */}
         <div>
           <div className="flex items-center justify-between">
             <label htmlFor="recipient-numbers" className="block text-xs font-bold uppercase tracking-wider text-ink-soft">
-              Recipient Phone Number(s) <span className="text-accent">*</span>
+              Recipient Phone Number <span className="text-accent">*</span>
             </label>
             <div className="flex items-center gap-1.5">
               <span className="text-[11px] text-ink-faint">Samples:</span>
               <button
                 type="button"
-                onClick={() => handleUseSample("233558816150", "Test message from Nalo SMS platform.")}
+                onClick={() => handleUseSample("558816150", "Test message from Nalo SMS platform via MTN.")}
                 className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 hover:bg-amber-200 transition-colors"
                 title="Fill sample MTN number"
               >
@@ -182,7 +278,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               </button>
               <button
                 type="button"
-                onClick={() => handleUseSample("233201234567", "Test message from Nalo SMS platform.")}
+                onClick={() => handleUseSample("201234567", "Test message from Nalo SMS platform via Telecel.")}
                 className="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-900 hover:bg-rose-200 transition-colors"
                 title="Fill sample Telecel number"
               >
@@ -190,7 +286,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               </button>
               <button
                 type="button"
-                onClick={() => handleUseSample("233271234567", "Test message from Nalo SMS platform.")}
+                onClick={() => handleUseSample("271234567", "Test message from Nalo SMS platform via AT.")}
                 className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-900 hover:bg-blue-200 transition-colors"
                 title="Fill sample AT number"
               >
@@ -198,54 +294,95 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               </button>
             </div>
           </div>
-          <div className="relative mt-1.5">
+
+          {/* Ghana Flag + +233 Fixed Prefix Phone Input */}
+          <div className="relative mt-1.5 flex items-center rounded-2xl border border-ink/[0.12] bg-canvas/40 transition-colors focus-within:border-accent focus-within:bg-white focus-within:ring-2 focus-within:ring-accent/20">
+            {/* Country Prefix with Ghana Flag */}
+            <div className="flex select-none items-center gap-2 border-r border-ink/[0.1] px-3.5 py-3 text-sm font-semibold text-ink">
+              <GhanaFlag className="h-4 w-6 shadow-xs rounded-xs" />
+              <span className="font-mono font-bold text-ink">+233</span>
+            </div>
+
+            {/* 9-digit local phone input */}
             <input
               id="recipient-numbers"
-              type="text"
-              value={numbersInput}
-              onChange={(e) => {
-                setNumbersInput(e.target.value);
-                setValidationError(null);
+              type="tel"
+              inputMode="numeric"
+              value={phoneDigits}
+              onChange={handlePhoneChange}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === ",") {
+                  e.preventDefault();
+                  if (phoneDigits.length === 9) {
+                    addCurrentPhoneToRecipients();
+                  }
+                }
               }}
-              placeholder="e.g. 233241234567, 233501234567"
+              placeholder="e.g. 55 881 6150"
               disabled={isSending}
-              className="w-full rounded-2xl border border-ink/[0.12] bg-canvas/40 px-4 py-3 font-mono text-sm text-ink transition-colors placeholder:font-sans placeholder:text-ink-faint hover:border-ink/20 focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
+              maxLength={9}
+              className="w-full bg-transparent px-3.5 py-3 font-mono text-sm text-ink placeholder:font-sans placeholder:text-ink-faint focus:outline-none"
             />
-            <div className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-ink-faint">
-              <PhoneIcon className="h-4 w-4" />
+
+            {/* Right Status: Carrier Badge, Counter, Add Button */}
+            <div className="flex items-center gap-2 pr-3.5 shrink-0">
+              {currentCarrier && (
+                <span
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${currentCarrier.badge}`}
+                  title={`${currentCarrier.name} Network`}
+                >
+                  {currentCarrier.name}
+                </span>
+              )}
+              <span className="font-mono text-[11px] text-ink-faint">
+                {phoneDigits.length}/9
+              </span>
+              {phoneDigits.length === 9 && (
+                <button
+                  type="button"
+                  onClick={addCurrentPhoneToRecipients}
+                  className="rounded-lg bg-chip px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-chip-strong transition-colors"
+                  title="Add to multiple recipient list"
+                >
+                  + Add
+                </button>
+              )}
             </div>
           </div>
+
           <p className="mt-1 text-[11px] text-ink-faint">
-            One or more numbers, comma-separated, in international format (e.g. <strong>233XXXXXXXXX</strong>). Digits only.
+            Ghana number format (+233 fixed). Enter remaining <strong>9 digits</strong> (leading 0 auto-disappears, max 9 digits).
           </p>
 
-          {/* Live parsed badges with Ghanaian Carrier Detection */}
-          {numbersInput.trim().length > 0 && (
+          {/* Recipient Chips List */}
+          {allRecipientNumbers.length > 0 && (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {recipientAnalysis.validNumbers.map((num) => {
+              {allRecipientNumbers.map((num) => {
                 const carrier = detectCarrier(num);
+                const isQueued = recipientsList.includes(num);
                 return (
                   <span
                     key={num}
                     className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-mono font-medium ${carrier.bg} ${carrier.color}`}
                   >
-                    <span className={`rounded px-1 text-[10px] font-bold ${carrier.badge}`}>
+                    <GhanaFlag className="h-2.5 w-4 rounded-xs" />
+                    <span className={`rounded px-1 text-[9px] font-bold ${carrier.badge}`}>
                       {carrier.name}
                     </span>
-                    {num}
+                    <span>+{num.slice(0, 3)} {num.slice(3, 5)} {num.slice(5, 8)} {num.slice(8)}</span>
+                    {isQueued && (
+                      <button
+                        type="button"
+                        onClick={() => removeRecipient(num)}
+                        className="ml-1 hover:opacity-75 text-xs font-bold"
+                        title="Remove recipient"
+                      >
+                        ✕
+                      </button>
+                    )}
                   </span>
                 );
               })}
-              {recipientAnalysis.invalidEntries.map((inv, idx) => (
-                <span
-                  key={idx}
-                  className="inline-flex items-center gap-1 rounded-lg border border-danger/30 bg-danger-bg px-2.5 py-1 text-xs font-mono font-medium text-danger-fg"
-                  title={inv.error}
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-danger" />
-                  {inv.raw} ({inv.error})
-                </span>
-              ))}
             </div>
           )}
         </div>
@@ -317,20 +454,20 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
         </div>
 
         {/* Live Cost Calculation Preview */}
-        {recipientAnalysis.validNumbers.length > 0 && message.trim().length > 0 && (
+        {allRecipientNumbers.length > 0 && message.trim().length > 0 && (
           <div className="flex items-center justify-between rounded-xl bg-chip/80 px-4 py-2.5 text-xs text-ink-soft">
             <span className="flex items-center gap-1.5">
               <span className="font-semibold text-ink">Estimated Cost:</span>
               <span className="font-bold text-accent-deep">
-                {recipientAnalysis.validNumbers.length * smsSegments.segmentCount} {recipientAnalysis.validNumbers.length * smsSegments.segmentCount === 1 ? "Credit" : "Credits"}
+                {allRecipientNumbers.length * smsSegments.segmentCount} {allRecipientNumbers.length * smsSegments.segmentCount === 1 ? "Credit" : "Credits"}
               </span>
               <span className="text-ink-faint">
-                ({recipientAnalysis.validNumbers.length} recipient{recipientAnalysis.validNumbers.length > 1 ? "s" : ""} × {smsSegments.segmentCount} segment{smsSegments.segmentCount > 1 ? "s" : ""})
+                ({allRecipientNumbers.length} recipient{allRecipientNumbers.length > 1 ? "s" : ""} × {smsSegments.segmentCount} segment{smsSegments.segmentCount > 1 ? "s" : ""})
               </span>
             </span>
             {balance !== null && (
               <span className="text-[11px] text-ink-faint">
-                Balance after send: <strong className="font-mono text-ink">{Math.max(0, balance - recipientAnalysis.validNumbers.length * smsSegments.segmentCount)}</strong>
+                Balance after send: <strong className="font-mono text-ink">{Math.max(0, balance - allRecipientNumbers.length * smsSegments.segmentCount)}</strong>
               </span>
             )}
           </div>
