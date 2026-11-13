@@ -76,6 +76,12 @@ async function initPg(): Promise<Pool> {
       );
 
       CREATE INDEX IF NOT EXISTS idx_dlr_message_id ON delivery_reports (message_id);
+
+      CREATE TABLE IF NOT EXISTS app_settings (
+        key VARCHAR(50) PRIMARY KEY,
+        value TEXT NOT NULL
+      );
+      INSERT INTO app_settings (key, value) VALUES ('sms_balance', '500') ON CONFLICT (key) DO NOTHING;
     `);
     pgInitialized = true;
   }
@@ -135,6 +141,12 @@ function initSqlite(): SqliteDb {
     );
 
     CREATE INDEX IF NOT EXISTS idx_dlr_message_id ON delivery_reports (message_id);
+
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT NOT NULL
+    );
+    INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sms_balance', '500');
   `);
 
   sqliteDb = db;
@@ -453,4 +465,69 @@ export async function getMessageStats(): Promise<{
   }
 
   return { total, delivered, pending, failed };
+}
+
+/**
+ * Retrieves the current SMS credit balance.
+ */
+export async function getSmsBalance(): Promise<number> {
+  const initial = Number(process.env.INITIAL_SMS_BALANCE) || 500;
+  if (isPostgres()) {
+    const pool = await initPg();
+    const res = await pool.query(
+      `SELECT value FROM app_settings WHERE key = 'sms_balance'`
+    );
+    if (res.rows.length > 0) {
+      return Number(res.rows[0].value) || 0;
+    }
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('sms_balance', $1) ON CONFLICT DO NOTHING`,
+      [String(initial)]
+    );
+    return initial;
+  }
+
+  const db = initSqlite();
+  const row = db
+    .prepare(`SELECT value FROM app_settings WHERE key = 'sms_balance'`)
+    .get() as { value: string } | undefined;
+  if (row) {
+    return Number(row.value) || 0;
+  }
+  db.prepare(
+    `INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sms_balance', ?)`
+  ).run(String(initial));
+  return initial;
+}
+
+/**
+ * Updates the SMS credit balance (e.g. from UI sync or top-up).
+ */
+export async function setSmsBalance(balance: number): Promise<number> {
+  const safeVal = Math.max(0, Math.floor(balance));
+  if (isPostgres()) {
+    const pool = await initPg();
+    await pool.query(
+      `INSERT INTO app_settings (key, value) VALUES ('sms_balance', $1)
+       ON CONFLICT (key) DO UPDATE SET value = $1`,
+      [String(safeVal)]
+    );
+    return safeVal;
+  }
+
+  const db = initSqlite();
+  db.prepare(`
+    INSERT INTO app_settings (key, value) VALUES ('sms_balance', ?)
+    ON CONFLICT (key) DO UPDATE SET value = ?
+  `).run(String(safeVal), String(safeVal));
+  return safeVal;
+}
+
+/**
+ * Deducts consumed SMS credits after successful gateway dispatch.
+ */
+export async function deductSmsCredits(credits: number): Promise<number> {
+  const current = await getSmsBalance();
+  const updated = Math.max(0, current - credits);
+  return await setSmsBalance(updated);
 }

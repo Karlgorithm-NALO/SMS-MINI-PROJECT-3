@@ -1,5 +1,5 @@
 import SmsDashboard from "@/components/SmsDashboard";
-import { getDatabaseEngine } from "@/lib/db";
+import { getDatabaseEngine, getSmsBalance } from "@/lib/db";
 import { getAllowedSenderIds, getCallbackUrl, resolveCallbackBaseUrl } from "@/lib/sms";
 import type { AppConfig } from "@/lib/types";
 import { headers } from "next/headers";
@@ -18,6 +18,7 @@ export default async function Home() {
   const callbackUrl = await getCallbackUrl(requestHost);
   const callbackBaseUrl = await resolveCallbackBaseUrl(requestHost);
   const apiKey = process.env.SMS_API_KEY?.trim() || "";
+  const balance = await getSmsBalance();
 
   const config: AppConfig = {
     senderIds: senderIds.length > 0 ? senderIds : ["NALO"],
@@ -26,6 +27,7 @@ export default async function Home() {
     hasApiKey: Boolean(apiKey),
     apiKeyPreview: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : undefined,
     databaseEngine: getDatabaseEngine(),
+    balance,
   };
 
   return <SmsDashboard config={config} />;

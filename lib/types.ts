@@ -64,6 +64,7 @@ export type AppConfig = {
   hasApiKey: boolean;
   apiKeyPreview?: string;
   databaseEngine?: string;
+  balance?: number;
 };
 
 // Legacy SikaLedger types

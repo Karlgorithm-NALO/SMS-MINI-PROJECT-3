@@ -172,6 +172,34 @@ export const WebhookIcon = ({ className }: IconProps) => (
   </Icon>
 );
 
+export const CoinsIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <circle cx="8" cy="8" r="6" />
+    <path d="M18.09 10.37A6 6 0 1 1 10.34 18" />
+    <path d="M7 6h1v4" />
+    <path d="m16.71 13.88.7.71-2.82 2.82" />
+  </Icon>
+);
+
+export const ZapIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={2}>
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+  </Icon>
+);
+
+export const SendIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={2}>
+    <line x1="22" y1="2" x2="11" y2="13" />
+    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+  </Icon>
+);
+
+export const SparklesIcon = ({ className }: IconProps) => (
+  <Icon className={className} viewBox="0 0 24 24" strokeWidth={1.8}>
+    <path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z" />
+  </Icon>
+);
+
 export const SpinnerIcon = ({ className = "h-4 w-4" }: IconProps) => (
   <svg aria-hidden viewBox="0 0 16 16" fill="none" className={`shrink-0 motion-safe:animate-spin ${className}`}>
     <circle cx="8" cy="8" r="6" stroke="currentColor" strokeOpacity="0.25" strokeWidth="2" />

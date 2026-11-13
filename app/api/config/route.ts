@@ -1,4 +1,4 @@
-import { getDatabaseEngine } from "@/lib/db";
+import { getDatabaseEngine, getSmsBalance } from "@/lib/db";
 import { getAllowedSenderIds, getCallbackUrl, resolveCallbackBaseUrl } from "@/lib/sms";
 import { NextRequest, NextResponse } from "next/server";
 
@@ -15,6 +15,7 @@ export async function GET(req: NextRequest) {
   const callbackUrl = await getCallbackUrl(requestHost);
   const callbackBaseUrl = await resolveCallbackBaseUrl(requestHost);
   const apiKey = process.env.SMS_API_KEY?.trim() || "";
+  const balance = await getSmsBalance();
 
   return NextResponse.json({
     senderIds,
@@ -23,5 +24,6 @@ export async function GET(req: NextRequest) {
     hasApiKey: Boolean(apiKey),
     apiKeyPreview: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null,
     databaseEngine: getDatabaseEngine(),
+    balance,
   });
 }

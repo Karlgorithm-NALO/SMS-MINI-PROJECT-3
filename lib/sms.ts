@@ -1,4 +1,4 @@
-import { saveSentMessage, updateMessageDelivery } from "./db";
+import { deductSmsCredits, saveSentMessage, updateMessageDelivery } from "./db";
 import type { SendRecipientResult, SendSmsResult } from "./types";
 import { parseRecipients } from "./validate";
 
@@ -82,8 +82,8 @@ export async function resolveCallbackBaseUrl(requestHost?: string): Promise<stri
     return detectedTunnel;
   }
 
-  // 3. Fallback to CALLBACK_BASE_URL env var
-  const envBase = process.env.CALLBACK_BASE_URL?.trim();
+  // 3. Fallback to CALLBACK_BASE_URL or RENDER_EXTERNAL_URL env var
+  const envBase = process.env.CALLBACK_BASE_URL?.trim() || process.env.RENDER_EXTERNAL_URL?.trim();
   if (envBase) {
     return envBase.replace(/\/+$/, "");
   }
@@ -101,7 +101,7 @@ export function getCallbackUrlSync(): string | null {
   if (cachedTunnelUrl && Date.now() < cachedTunnelUrl.expiresAt) {
     return `${cachedTunnelUrl.url}/api/callback`;
   }
-  const base = process.env.CALLBACK_BASE_URL?.trim();
+  const base = process.env.CALLBACK_BASE_URL?.trim() || process.env.RENDER_EXTERNAL_URL?.trim();
   if (!base) return null;
   return `${base.replace(/\/+$/, "")}/api/callback`;
 }
@@ -272,6 +272,9 @@ export async function sendNaloSms(params: {
           statusCode: "1701",
           rawResponse: responseText,
         });
+
+        // Deduct 1 credit per segment for this successfully dispatched recipient
+        await deductSmsCredits(1);
 
         // Auto-reconcile delivery after 4 seconds to guarantee fast, reliable feedback
         scheduleAutoDeliveryReconciliation({

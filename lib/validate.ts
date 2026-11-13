@@ -275,3 +275,31 @@ export function previewCsv(text: string): CsvPreview {
     missingColumns: REQUIRED_COLUMNS.filter((column) => !header.includes(column)),
   };
 }
+
+/**
+ * Detects Ghanaian mobile network operator (MNO) from prefix.
+ */
+export function detectCarrier(phone: string): {
+  name: "MTN" | "Telecel" | "AT" | "Ghana" | "Unknown";
+  color: string;
+  bg: string;
+  badge: string;
+} {
+  const clean = phone.replace(/\D/g, "");
+  const norm = clean.startsWith("0") ? "233" + clean.slice(1) : clean;
+  const prefix = norm.slice(0, 5);
+
+  if (["23324", "23354", "23355", "23359", "23325", "23353"].includes(prefix)) {
+    return { name: "MTN", color: "text-amber-900", bg: "bg-amber-100 border-amber-300", badge: "bg-amber-400 text-black" };
+  }
+  if (["23320", "23350"].includes(prefix)) {
+    return { name: "Telecel", color: "text-rose-900", bg: "bg-rose-100 border-rose-300", badge: "bg-rose-600 text-white" };
+  }
+  if (["23327", "23357", "23326", "23356"].includes(prefix)) {
+    return { name: "AT", color: "text-blue-900", bg: "bg-blue-100 border-blue-300", badge: "bg-blue-600 text-white" };
+  }
+  if (norm.startsWith("233")) {
+    return { name: "Ghana", color: "text-slate-800", bg: "bg-slate-100 border-slate-300", badge: "bg-slate-700 text-white" };
+  }
+  return { name: "Unknown", color: "text-slate-600", bg: "bg-slate-100 border-slate-200", badge: "bg-slate-500 text-white" };
+}
