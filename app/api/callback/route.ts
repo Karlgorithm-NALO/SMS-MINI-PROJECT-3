@@ -7,29 +7,43 @@ export const runtime = "nodejs";
 async function processCallbackPayload(data: Record<string, unknown>, rawText: string) {
   console.log("[INCOMING DLR CALLBACK RECEIVED]:", JSON.stringify(data), "raw:", rawText);
 
-  // Support both snake_case, camelCase, and alternate parameter names (e.g. mid, msisdn)
-  let messageId = String(
-    data.message_id ||
-      data.messageId ||
-      data.msg_id ||
-      data.msgid ||
-      data.mid ||
-      data.id ||
-      data.messageID ||
-      data.batch_id ||
-      ""
-  ).trim();
+  // Case-insensitive lookup helper across all possible gateway parameter name variants
+  const lookup = (keys: string[]): string => {
+    for (const k of keys) {
+      if (data[k] !== undefined && data[k] !== null && String(data[k]).trim() !== "") {
+        return String(data[k]).trim();
+      }
+      for (const [dk, dv] of Object.entries(data)) {
+        if (dk.toLowerCase() === k.toLowerCase() && dv !== undefined && dv !== null && String(dv).trim() !== "") {
+          return String(dv).trim();
+        }
+      }
+    }
+    return "";
+  };
 
-  let status = String(
-    data.status ||
-      data.delivery_status ||
-      data.deliveryStatus ||
-      data.dlr_status ||
-      data.dlrStatus ||
-      data.state ||
-      data.report ||
-      ""
-  ).trim();
+  let messageId = lookup([
+    "message_id",
+    "messageId",
+    "msg_id",
+    "msgid",
+    "mid",
+    "id",
+    "messageID",
+    "batch_id",
+    "transaction_id",
+  ]);
+
+  let status = lookup([
+    "status",
+    "delivery_status",
+    "deliveryStatus",
+    "dlr_status",
+    "dlrStatus",
+    "state",
+    "report",
+    "dlr",
+  ]);
 
   // If plain text pipe-separated e.g. 1701|phone|message_id
   if (!messageId && rawText.includes("|")) {
@@ -50,23 +64,24 @@ async function processCallbackPayload(data: Record<string, unknown>, rawText: st
 
   if (!status) status = "DELIVRD";
 
-  const statusCode =
-    data.status_code || data.statusCode
-      ? String(data.status_code || data.statusCode)
-      : rawText.includes("1707")
-        ? "1707"
-        : undefined;
+  const statusCode = lookup(["status_code", "statusCode", "code"]) || (rawText.includes("1707") ? "1707" : undefined);
+  const description =
+    lookup(["description", "desc", "reason", "error"]) ||
+    (rawText.includes("1707") ? "Invalid Source / Sender ID not approved on account" : undefined);
 
-  const description = data.description
-    ? String(data.description)
-    : rawText.includes("1707")
-      ? "Invalid Source / Sender ID not approved on account"
-      : undefined;
+  let recipient: string | undefined = lookup([
+    "to",
+    "destination",
+    "recipient",
+    "msisdn",
+    "phone",
+    "number",
+    "mobile",
+  ]);
 
-  const recipient =
-    data.to || data.destination || data.recipient || data.msisdn || data.phone
-      ? String(data.to || data.destination || data.recipient || data.msisdn || data.phone)
-      : undefined;
+  if (!recipient) {
+    recipient = undefined;
+  }
 
   // Fallback ID if message_id was omitted but recipient was provided
   if (!messageId && recipient) {

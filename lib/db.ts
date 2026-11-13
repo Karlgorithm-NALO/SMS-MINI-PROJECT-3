@@ -286,8 +286,11 @@ export async function updateMessageDelivery(data: {
     );
 
     // Robust Fallback: If no row matched by exact message_id (e.g. Nalo returned internal 'mid'),
-    // match the latest pending message sent to the same recipient phone number
+    // match the latest pending message sent to the same recipient phone number (using last 9 digits)
     if ((updateRes.rowCount ?? 0) === 0 && data.recipient) {
+      const cleanDigits = data.recipient.replace(/\D/g, "");
+      const searchPattern = cleanDigits.length >= 9 ? cleanDigits.slice(-9) : cleanDigits;
+
       updateRes = await pool.query(
         `UPDATE messages
          SET status = $1,
@@ -296,7 +299,7 @@ export async function updateMessageDelivery(data: {
              raw_callback = $4
          WHERE id = (
            SELECT id FROM messages
-           WHERE (recipient = $5 OR recipient LIKE '%' || $5)
+           WHERE recipient LIKE '%' || $5
              AND status IN ('SUBMITTED', 'SENT', 'PENDING')
            ORDER BY id DESC
            LIMIT 1
@@ -306,7 +309,7 @@ export async function updateMessageDelivery(data: {
           data.statusCode ?? null,
           receivedAt,
           data.rawPayload ?? null,
-          data.recipient,
+          searchPattern,
         ]
       );
     }
@@ -351,8 +354,11 @@ export async function updateMessageDelivery(data: {
     data.messageId
   );
 
-  // Robust Fallback: Match latest pending message to recipient if ID differed
+  // Robust Fallback: Match latest pending message to recipient (last 9 digits) if ID differed
   if (Number(result.changes) === 0 && data.recipient) {
+    const cleanDigits = data.recipient.replace(/\D/g, "");
+    const searchPattern = cleanDigits.length >= 9 ? cleanDigits.slice(-9) : cleanDigits;
+
     const fallbackUpdate = db.prepare(`
       UPDATE messages
       SET status = ?,
@@ -361,7 +367,7 @@ export async function updateMessageDelivery(data: {
           raw_callback = ?
       WHERE id = (
         SELECT id FROM messages
-        WHERE (recipient = ? OR recipient LIKE '%' || ?)
+        WHERE recipient LIKE '%' || ?
           AND status IN ('SUBMITTED', 'SENT', 'PENDING')
         ORDER BY id DESC
         LIMIT 1
@@ -372,8 +378,7 @@ export async function updateMessageDelivery(data: {
       data.statusCode ?? null,
       receivedAt,
       data.rawPayload ?? null,
-      data.recipient,
-      data.recipient
+      searchPattern
     );
   }
 
