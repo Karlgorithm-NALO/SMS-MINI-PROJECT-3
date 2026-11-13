@@ -27,31 +27,6 @@ export default function MessageHistory({ refreshTrigger }: Props) {
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [autoPoll, setAutoPoll] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [simulatingId, setSimulatingId] = useState<number | null>(null);
-
-  async function handleSimulateCallback(msg: SmsRecord) {
-    setSimulatingId(msg.id);
-    try {
-      await fetch("/api/callback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          mid: msg.message_id,
-          msisdn: msg.recipient,
-          source: msg.sender_id,
-          network: "MTN",
-          status: "DELIVRD",
-          status_code: "000",
-          delivery_date: new Date().toISOString(),
-        }),
-      });
-      await fetchMessages(false);
-    } catch (err) {
-      console.error("Simulation failed:", err);
-    } finally {
-      setSimulatingId(null);
-    }
-  }
 
   async function fetchMessages(showRefreshSpinner = false) {
     if (showRefreshSpinner) setIsRefreshing(true);
@@ -394,24 +369,10 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                     {selectedMsg.raw_callback ? (
                       <pre>{selectedMsg.raw_callback}</pre>
                     ) : (
-                      <span className="text-ink-faint italic">No DLR callback received yet for this message.</span>
+                      <span className="text-ink-faint italic">Awaiting carrier delivery report.</span>
                     )}
                   </div>
                 </div>
-
-                {!selectedMsg.delivered_at && (
-                  <div className="mt-2 pt-2 border-t border-ink/[0.06] flex items-center justify-between">
-                    <span className="text-[11px] text-ink-soft">Test delivery callback handler:</span>
-                    <button
-                      type="button"
-                      onClick={() => handleSimulateCallback(selectedMsg)}
-                      disabled={simulatingId === selectedMsg.id}
-                      className="rounded-lg bg-accent-tint px-2.5 py-1 font-sans text-[11px] font-semibold text-accent-deep hover:bg-accent hover:text-white transition-colors disabled:opacity-50"
-                    >
-                      {simulatingId === selectedMsg.id ? "Updating..." : "Simulate / Test DLR Callback"}
-                    </button>
-                  </div>
-                )}
               </div>
             </div>
           </div>
