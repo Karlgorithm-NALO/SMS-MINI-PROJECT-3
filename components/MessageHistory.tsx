@@ -347,7 +347,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
       </div>
 
       {/* Table Content */}
-      <div className="mt-4 overflow-x-auto">
+      <div className="mt-4 overflow-x-auto rounded-2xl border border-ink/[0.06] bg-white">
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-16 text-center text-ink-soft">
             <SpinnerIcon className="h-8 w-8 animate-spin text-accent" />
@@ -364,21 +364,21 @@ export default function MessageHistory({ refreshTrigger }: Props) {
             <p className="mt-1 max-w-sm text-xs text-ink-soft">
               {searchQuery || filter !== "ALL"
                 ? "Try clearing your search query or filter tab."
-                : "Fill out the Send SMS form above to dispatch your first message through the Nalo gateway."}
+                : "Fill out the Send SMS form to dispatch your first message through the Nalo gateway."}
             </p>
           </div>
         ) : (
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-ink/[0.08] text-[11px] font-bold uppercase tracking-wider text-ink-soft">
-                <th className="pb-3 pl-2 pr-3">Status</th>
-                <th className="pb-3 px-3">Message ID</th>
-                <th className="pb-3 px-3">Sender ID</th>
-                <th className="pb-3 px-3">Recipient</th>
-                <th className="pb-3 px-3">Message</th>
-                <th className="pb-3 px-3">Sent Time</th>
-                <th className="pb-3 px-3">Delivery Callback</th>
-                <th className="pb-3 pr-2 text-right">Details</th>
+              <tr className="border-b border-ink/[0.08] bg-canvas/60 text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                <th className="py-2.5 pl-3 pr-2">Status</th>
+                <th className="py-2.5 px-2.5">Message ID</th>
+                <th className="py-2.5 px-2.5">Sender</th>
+                <th className="py-2.5 px-2.5">Recipient</th>
+                <th className="py-2.5 px-2.5">Message Snippet</th>
+                <th className="py-2.5 px-2.5">Sent</th>
+                <th className="py-2.5 px-2.5">Delivered (DLR)</th>
+                <th className="py-2.5 pr-3 text-right">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-ink/[0.04]">
@@ -388,15 +388,17 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                 return (
                   <tr
                     key={msg.id}
-                    className="group hover:bg-canvas/50 transition-colors"
+                    className="group hover:bg-canvas/40 transition-colors"
                   >
-                    <td className="py-3.5 pl-2 pr-3 whitespace-nowrap">
+                    <td className="py-2.5 pl-3 pr-2 whitespace-nowrap">
                       {getStatusBadge(msg.status)}
                     </td>
 
-                    <td className="py-3.5 px-3 font-mono font-medium text-ink whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 font-mono text-[11px] font-medium text-ink whitespace-nowrap">
                       <div className="flex items-center gap-1">
-                        <span>{msg.message_id}</span>
+                        <span title={msg.message_id} className="max-w-[110px] truncate">
+                          {msg.message_id}
+                        </span>
                         <button
                           type="button"
                           onClick={() => copyText(msg.message_id)}
@@ -406,26 +408,26 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                           <CopyIcon className="h-3 w-3" />
                         </button>
                         {copiedId === msg.message_id && (
-                          <span className="text-[10px] text-accent">Copied</span>
+                          <span className="text-[9px] text-accent font-sans font-bold">Copied</span>
                         )}
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 whitespace-nowrap">
-                      <span className="rounded-md bg-chip px-2 py-0.5 font-semibold text-ink-body">
+                    <td className="py-2.5 px-2.5 whitespace-nowrap">
+                      <span className="rounded-md bg-chip px-2 py-0.5 font-semibold text-ink-body text-[11px]">
                         {msg.sender_id}
                       </span>
                     </td>
 
-                    <td className="py-3.5 px-3 font-mono text-ink whitespace-nowrap">
-                      <div className="flex items-center gap-2">
+                    <td className="py-2.5 px-2.5 font-mono text-[11px] text-ink whitespace-nowrap">
+                      <div className="flex items-center gap-1.5">
                         {(() => {
                           const carrier = detectCarrier(msg.recipient);
                           return (
                             <>
-                              <TelcoLogo carrier={carrier.name} className="h-4 w-4" />
+                              <TelcoLogo carrier={carrier.name} className="h-3.5 w-3.5" />
                               <span
-                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold font-sans ${carrier.badge}`}
+                                className={`rounded px-1 py-0.2 text-[9px] font-bold font-sans ${carrier.badge}`}
                                 title={`${carrier.fullName || carrier.name}`}
                               >
                                 {carrier.name}
@@ -437,17 +439,17 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                       </div>
                     </td>
 
-                    <td className="py-3.5 px-3 max-w-[200px] truncate text-ink-body" title={msg.message}>
+                    <td className="py-2.5 px-2.5 max-w-[180px] lg:max-w-[220px] truncate text-ink-body" title={msg.message}>
                       {msg.message}
                     </td>
 
-                    <td className="py-3.5 px-3 text-ink-soft whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 text-ink-soft whitespace-nowrap text-[11px]">
                       {formatDate(msg.sent_at)}
                     </td>
 
-                    <td className="py-3.5 px-3 whitespace-nowrap">
+                    <td className="py-2.5 px-2.5 whitespace-nowrap text-[11px]">
                       {msg.delivered_at ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <span className="text-success-fg font-medium">
                             {formatDate(msg.delivered_at)}
                           </span>
@@ -458,7 +460,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                               );
                               if (diffSec >= 0 && diffSec < 3600) {
                                 return (
-                                  <span className="rounded bg-success-bg px-1.5 py-0.5 text-[10px] font-semibold text-success-fg">
+                                  <span className="rounded bg-success-bg px-1 py-0.2 text-[9px] font-semibold text-success-fg">
                                     +{diffSec}s
                                   </span>
                                 );
@@ -468,15 +470,15 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                           })()}
                         </div>
                       ) : (
-                        <span className="text-ink-faint italic">Awaiting callback</span>
+                        <span className="text-ink-faint italic text-[11px]">Awaiting callback</span>
                       )}
                     </td>
 
-                    <td className="py-3.5 pr-2 text-right whitespace-nowrap">
+                    <td className="py-2.5 pr-3 text-right whitespace-nowrap">
                       <button
                         type="button"
                         onClick={() => setExpandedId(isExpanded ? null : msg.id)}
-                        className="rounded-lg px-2 py-1 text-xs font-semibold text-accent hover:bg-accent-tint/40 transition-colors"
+                        className="rounded-md px-2 py-0.5 text-xs font-semibold text-accent hover:bg-accent-wash transition-colors"
                       >
                         {isExpanded ? "Hide" : "Inspect"}
                       </button>

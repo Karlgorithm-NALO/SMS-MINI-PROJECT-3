@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SendSmsResult } from "@/lib/types";
 import { calculateSmsSegments, detectCarrier, formatPhoneNumber, parseRecipients, validateSmsForm } from "@/lib/validate";
 import { AtLogo, GhanaFlag, MtnLogo, PaperPlaneIcon, SpinnerIcon, TelecelLogo, TelcoLogo, XCircleIcon } from "./icons";
@@ -10,9 +10,15 @@ type Props = {
   allowedSenderIds: string[];
   onMessageSent: () => void;
   balance?: number | null;
+  onFormChange?: (state: {
+    senderId: string;
+    message: string;
+    primaryPhone: string;
+    carrierName: string;
+  }) => void;
 };
 
-export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance = null }: Props) {
+export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance = null, onFormChange }: Props) {
   const [phoneDigits, setPhoneDigits] = useState("");
   const [recipientsList, setRecipientsList] = useState<string[]>([]);
   const [senderId, setSenderId] = useState(allowedSenderIds[0] || "");
@@ -21,9 +27,15 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
   const [feedback, setFeedback] = useState<SendSmsResult | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
 
-  // Clean Ghana local digits (strips leading 0, strips 233, max 9 digits)
+  // Clean Ghana local digits (strips +233, leading zeros, spaces, max 9 digits)
   function cleanGhanaLocalDigits(input: string): string {
     let digits = input.replace(/\D/g, "");
+    if (digits.startsWith("233")) {
+      digits = digits.slice(3);
+    }
+    while (digits.startsWith("0")) {
+      digits = digits.slice(1);
+    }
     if (digits.startsWith("233")) {
       digits = digits.slice(3);
     }
@@ -40,6 +52,16 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
     }
     return null;
   }, [phoneDigits]);
+
+  // Sync state to parent for live phone preview
+  useEffect(() => {
+    onFormChange?.({
+      senderId,
+      message,
+      primaryPhone: phoneDigits ? `+233 ${phoneDigits}` : "",
+      carrierName: currentCarrier?.name || "MTN",
+    });
+  }, [senderId, message, phoneDigits, currentCarrier, onFormChange]);
 
   // All combined numbers formatted as 233XXXXXXXXX
   const allRecipientNumbers = useMemo(() => {
