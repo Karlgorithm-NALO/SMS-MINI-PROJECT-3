@@ -13,11 +13,97 @@ export function getAllowedSenderIds(): string[] {
     .filter(Boolean);
 }
 
-export function getCallbackUrl(): string | null {
+let cachedTunnelUrl: { url: string; expiresAt: number } | null = null;
+
+/**
+ * Automatically discovers active Cloudflare Quick Tunnel from running container or host metrics.
+ * Eliminates the need to manually update CALLBACK_BASE_URL when quick tunnels restart.
+ */
+export async function detectCloudflareTunnelUrl(): Promise<string | null> {
+  if (cachedTunnelUrl && Date.now() < cachedTunnelUrl.expiresAt) {
+    return cachedTunnelUrl.url;
+  }
+
+  const endpoints = [
+    "http://tunnel:20241/metrics", // Inside Docker bridge network
+    "http://127.0.0.1:20241/metrics", // On host machine
+    "http://localhost:20241/metrics",
+  ];
+
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetch(endpoint, {
+        signal: AbortSignal.timeout(600),
+      });
+      if (res.ok) {
+        const text = await res.text();
+        const match = text.match(/userHostname="([^"]+)"/);
+        if (match && match[1]) {
+          const url = match[1].replace(/\/+$/, "");
+          cachedTunnelUrl = { url, expiresAt: Date.now() + 15000 };
+          console.log(`[TUNNEL AUTO-DISCOVERY]: Detected active Cloudflare tunnel: ${url}`);
+          return url;
+        }
+      }
+    } catch {
+      // Tunnel not reachable at this endpoint, continue
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Resolves the active base URL for callbacks.
+ * Priority:
+ * 1. Public client request hostname (e.g. from reverse proxy headers)
+ * 2. Auto-detected live Cloudflare tunnel from metrics
+ * 3. CALLBACK_BASE_URL environment variable
+ */
+export async function resolveCallbackBaseUrl(requestHost?: string): Promise<string> {
+  // 1. If incoming request was made from a public domain (e.g. *.trycloudflare.com, *.render.com)
+  if (requestHost) {
+    const cleanHost = requestHost.split(":")[0].toLowerCase();
+    const isLocal =
+      cleanHost === "localhost" ||
+      cleanHost === "127.0.0.1" ||
+      cleanHost === "0.0.0.0" ||
+      cleanHost.endsWith(".local");
+
+    if (!isLocal) {
+      const proto = requestHost.includes("localhost") ? "http" : "https";
+      return `${proto}://${requestHost.replace(/\/+$/, "")}`;
+    }
+  }
+
+  // 2. Check if a local/docker Cloudflare tunnel is running
+  const detectedTunnel = await detectCloudflareTunnelUrl();
+  if (detectedTunnel) {
+    return detectedTunnel;
+  }
+
+  // 3. Fallback to CALLBACK_BASE_URL env var
+  const envBase = process.env.CALLBACK_BASE_URL?.trim();
+  if (envBase) {
+    return envBase.replace(/\/+$/, "");
+  }
+
+  return "";
+}
+
+export async function getCallbackUrl(requestHost?: string): Promise<string | null> {
+  const base = await resolveCallbackBaseUrl(requestHost);
+  if (!base) return null;
+  return `${base}/api/callback`;
+}
+
+export function getCallbackUrlSync(): string | null {
+  if (cachedTunnelUrl && Date.now() < cachedTunnelUrl.expiresAt) {
+    return `${cachedTunnelUrl.url}/api/callback`;
+  }
   const base = process.env.CALLBACK_BASE_URL?.trim();
   if (!base) return null;
-  const cleanBase = base.replace(/\/+$/, "");
-  return `${cleanBase}/api/callback`;
+  return `${base.replace(/\/+$/, "")}/api/callback`;
 }
 
 /**
@@ -45,6 +131,8 @@ export async function sendNaloSms(params: {
   numbers: string;
   senderId: string;
   message: string;
+  requestHost?: string;
+  callbackUrlOverride?: string;
 }): Promise<SendSmsResult> {
   const apiKey = process.env.SMS_API_KEY?.trim();
   const allowedSenderIds = getAllowedSenderIds();
@@ -94,7 +182,8 @@ export async function sendNaloSms(params: {
   }
 
   const endpointUrl = process.env.NALO_SMS_URL?.trim() || DEFAULT_NALO_ENDPOINT;
-  const callbackUrl = getCallbackUrl();
+  const callbackUrl =
+    params.callbackUrlOverride || (await getCallbackUrl(params.requestHost));
 
   const results: SendRecipientResult[] = [];
   let primaryMessageId: string | undefined;

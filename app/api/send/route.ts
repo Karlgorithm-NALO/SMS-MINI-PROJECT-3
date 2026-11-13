@@ -11,6 +11,13 @@ export async function POST(req: NextRequest) {
     const numbersInput = body.numbers || "";
     const senderId = body.senderId || "";
     const message = body.message || "";
+    const callbackUrlOverride = body.callbackUrlOverride || undefined;
+
+    // Detect host from incoming request (supports Cloudflare tunnel, ngrok, reverse proxy)
+    const requestHost =
+      req.headers.get("x-forwarded-host") ||
+      req.headers.get("host") ||
+      undefined;
 
     const allowedSenderIds = getAllowedSenderIds();
 
@@ -37,6 +44,8 @@ export async function POST(req: NextRequest) {
       numbers: numbersInput,
       senderId,
       message,
+      requestHost,
+      callbackUrlOverride,
     });
 
     return NextResponse.json(result, {

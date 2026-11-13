@@ -1,19 +1,27 @@
 import SmsDashboard from "@/components/SmsDashboard";
 import { getDatabaseEngine } from "@/lib/db";
-import { getAllowedSenderIds, getCallbackUrl } from "@/lib/sms";
+import { getAllowedSenderIds, getCallbackUrl, resolveCallbackBaseUrl } from "@/lib/sms";
 import type { AppConfig } from "@/lib/types";
+import { headers } from "next/headers";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-export default function Home() {
+export default async function Home() {
+  const headerList = headers();
+  const requestHost =
+    headerList.get("x-forwarded-host") ||
+    headerList.get("host") ||
+    undefined;
+
   const senderIds = getAllowedSenderIds();
-  const callbackUrl = getCallbackUrl();
+  const callbackUrl = await getCallbackUrl(requestHost);
+  const callbackBaseUrl = await resolveCallbackBaseUrl(requestHost);
   const apiKey = process.env.SMS_API_KEY?.trim() || "";
 
   const config: AppConfig = {
     senderIds: senderIds.length > 0 ? senderIds : ["NALO"],
-    callbackBaseUrl: process.env.CALLBACK_BASE_URL?.trim() || "",
+    callbackBaseUrl,
     callbackEndpoint: callbackUrl || "/api/callback",
     hasApiKey: Boolean(apiKey),
     apiKeyPreview: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : undefined,

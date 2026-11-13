@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { CopyIcon, SignalIcon, WebhookIcon } from "./icons";
+import { useEffect, useState } from "react";
+import { CheckIcon, CopyIcon, SignalIcon, SpinnerIcon, WebhookIcon } from "./icons";
 
 type Props = {
   callbackBaseUrl: string;
@@ -10,32 +10,87 @@ type Props = {
 
 export default function CallbackInfo({ callbackBaseUrl, hasApiKey }: Props) {
   const [copied, setCopied] = useState(false);
+  const [effectiveUrl, setEffectiveUrl] = useState(callbackBaseUrl);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
 
-  const fullCallbackUrl = callbackBaseUrl
-    ? `${callbackBaseUrl.replace(/\/+$/, "")}/api/callback`
-    : "http://localhost:3000/api/callback (Local - set CALLBACK_BASE_URL for public tunnel)";
+  // If callbackBaseUrl is empty but the browser is on a public domain (e.g. trycloudflare.com), use window origin
+  useEffect(() => {
+    if (!callbackBaseUrl && typeof window !== "undefined") {
+      const origin = window.location.origin;
+      if (origin.startsWith("https://") && !origin.includes("localhost") && !origin.includes("127.0.0.1")) {
+        setEffectiveUrl(origin);
+      }
+    } else {
+      setEffectiveUrl(callbackBaseUrl);
+    }
+  }, [callbackBaseUrl]);
+
+  const fullCallbackUrl = effectiveUrl
+    ? `${effectiveUrl.replace(/\/+$/, "")}/api/callback`
+    : "http://localhost:3000/api/callback (Localhost Only)";
+
+  const isPublic = Boolean(
+    effectiveUrl &&
+      !effectiveUrl.includes("localhost") &&
+      !effectiveUrl.includes("127.0.0.1")
+  );
 
   function copyUrl() {
-    if (callbackBaseUrl) {
+    if (effectiveUrl) {
       navigator.clipboard.writeText(fullCallbackUrl);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
   }
 
+  async function handleTestWebhook() {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const pingId = `PING-${Date.now().toString().slice(-6)}`;
+      const res = await fetch("/api/callback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mid: pingId,
+          msisdn: "233558816150",
+          status: "DELIVRD",
+          status_code: "000",
+          source: "WebhookTest",
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setTestResult({ ok: true, message: `Webhook received & saved (${pingId})` });
+      } else {
+        setTestResult({ ok: false, message: data.error || "Failed callback response" });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Network error";
+      setTestResult({ ok: false, message: msg });
+    } finally {
+      setTesting(false);
+      setTimeout(() => setTestResult(null), 5000);
+    }
+  }
+
   return (
     <div className="rounded-[24px] border border-ink/[0.08] bg-surface p-5 shadow-card">
-      <div className="flex items-center gap-2.5">
-        <div className="grid h-8 w-8 place-items-center rounded-xl bg-accent-tint text-accent-deep">
-          <WebhookIcon className="h-4 w-4" />
-        </div>
-        <div>
-          <h3 className="font-display text-base font-bold text-ink">
-            Delivery Callback Webhook
-          </h3>
-          <p className="text-xs text-ink-soft">
-            Receives real-time DLR (Delivery Reports) from Nalo gateway
-          </p>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="grid h-8 w-8 place-items-center rounded-xl bg-accent-tint text-accent-deep">
+            <WebhookIcon className="h-4 w-4" />
+          </div>
+          <div>
+            <h3 className="font-display text-base font-bold text-ink">
+              Delivery Callback Webhook
+            </h3>
+            <p className="text-xs text-ink-soft">
+              Receives real-time DLR (Delivery Reports) from Nalo gateway
+            </p>
+          </div>
         </div>
       </div>
 
@@ -43,7 +98,7 @@ export default function CallbackInfo({ callbackBaseUrl, hasApiKey }: Props) {
         <div>
           <div className="flex items-center justify-between text-xs">
             <span className="font-semibold text-ink-soft">Active Callback URL:</span>
-            {callbackBaseUrl ? (
+            {isPublic ? (
               <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-success-fg">
                 <span className="h-1.5 w-1.5 rounded-full bg-success" />
                 Public Tunnel Active
@@ -57,7 +112,7 @@ export default function CallbackInfo({ callbackBaseUrl, hasApiKey }: Props) {
           </div>
           <div className="mt-1 flex items-center justify-between rounded-xl bg-canvas p-2.5 font-mono text-xs text-ink">
             <span className="truncate pr-2">{fullCallbackUrl}</span>
-            {callbackBaseUrl && (
+            {effectiveUrl && (
               <button
                 type="button"
                 onClick={copyUrl}
@@ -71,19 +126,45 @@ export default function CallbackInfo({ callbackBaseUrl, hasApiKey }: Props) {
           </div>
         </div>
 
+        {/* Quick Webhook Endpoint Test Button */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            type="button"
+            onClick={handleTestWebhook}
+            disabled={testing}
+            className="inline-flex items-center gap-1.5 rounded-lg border border-ink/[0.12] bg-white px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-chip transition-colors disabled:opacity-50"
+          >
+            {testing ? (
+              <>
+                <SpinnerIcon className="h-3 w-3 animate-spin text-accent" />
+                Testing Webhook...
+              </>
+            ) : (
+              <>
+                <SignalIcon className="h-3 w-3 text-accent" />
+                Ping / Test Callback Route
+              </>
+            )}
+          </button>
+
+          {testResult && (
+            <span
+              className={`text-[11px] font-medium ${
+                testResult.ok ? "text-success-fg font-semibold" : "text-rose-600"
+              }`}
+            >
+              {testResult.ok ? `✓ ${testResult.message}` : `✕ ${testResult.message}`}
+            </span>
+          )}
+        </div>
+
         {/* Cloudflare and ngrok guidance */}
         <div className="rounded-xl bg-chip/60 p-3 text-[11px] leading-relaxed text-ink-body">
           <p className="font-bold text-ink">
-            Testing callbacks locally:
+            Automatic Tunnel Sync:
           </p>
           <p className="mt-0.5 text-ink-soft">
-            The Nalo gateway needs a public HTTPS URL. Run Cloudflare Tunnel:
-          </p>
-          <code className="mt-1 block rounded bg-white px-2 py-1 font-mono text-[11px] text-ink border border-ink/[0.06]">
-            cloudflared tunnel --url http://localhost:3000
-          </code>
-          <p className="mt-1 text-ink-soft">
-            Then copy the <span className="font-mono">https://*.trycloudflare.com</span> URL into your <code className="font-mono font-bold">.env</code> as <code className="font-mono font-bold">CALLBACK_BASE_URL</code>.
+            The platform auto-detects Cloudflare Tunnel on docker port <code className="font-mono text-ink">20241</code> and requests sent via public HTTPS tunnel domains. No manual updates needed on restart!
           </p>
         </div>
       </div>
