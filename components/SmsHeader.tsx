@@ -5,6 +5,14 @@ import { CoinsIcon, LogoMark, SignalIcon } from "./icons";
 
 export const CONTAINER = "mx-auto w-full max-w-[80rem] px-4 sm:px-6 lg:px-10";
 
+function formatCedi(val: number): string {
+  const s = val.toString();
+  if (s.includes(".") && s.split(".")[1].length >= 3) {
+    return val.toFixed(3);
+  }
+  return val.toFixed(2);
+}
+
 type Props = {
   senderIdsCount: number;
   hasApiKey: boolean;
@@ -20,14 +28,12 @@ export default function SmsHeader({
   balance = null,
   onBalanceUpdated,
 }: Props) {
+  const numBalance = balance !== null ? Number(balance) : 9.744;
   const [isEditingBalance, setIsEditingBalance] = useState(false);
-  const [newBalanceInput, setNewBalanceInput] = useState(
-    balance !== null ? balance.toFixed(2) : "50.00"
-  );
+  const [newBalanceInput, setNewBalanceInput] = useState(formatCedi(numBalance));
   const [rateInput, setRateInput] = useState("0.032");
   const [saving, setSaving] = useState(false);
 
-  const numBalance = balance !== null ? Number(balance) : 50.0;
   const numRate = parseFloat(rateInput) || 0.032;
   const availableSms = Math.floor(numBalance / numRate);
 
@@ -83,7 +89,7 @@ export default function SmsHeader({
         <button
           type="button"
           onClick={() => {
-            setNewBalanceInput(numBalance.toFixed(2));
+            setNewBalanceInput(formatCedi(numBalance));
             setIsEditingBalance(true);
           }}
           title="Click to enter or sync your exact balance in Cedis from the Nalo portal"
@@ -92,7 +98,7 @@ export default function SmsHeader({
           <CoinsIcon className="h-3.5 w-3.5 opacity-90" />
           <span className="font-medium opacity-85">Balance:</span>
           <span className="font-bold tabular-nums">
-            GH₵ {numBalance.toFixed(2)}
+            GH₵ {formatCedi(numBalance)}
           </span>
           <span className="hidden sm:inline text-[10px] opacity-80 font-normal">
             (~{availableSms.toLocaleString()} SMS)

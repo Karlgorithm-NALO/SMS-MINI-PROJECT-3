@@ -34,6 +34,8 @@ export default function SmsDashboard({ config }: Props) {
 
   useEffect(() => {
     fetchBalance();
+    const timer = setInterval(fetchBalance, 4000);
+    return () => clearInterval(timer);
   }, [fetchBalance, refreshTrigger]);
 
   function handleMessageSent() {

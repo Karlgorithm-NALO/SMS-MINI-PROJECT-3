@@ -4,6 +4,14 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+function formatCedi(val: number): string {
+  const s = val.toString();
+  if (s.includes(".") && s.split(".")[1].length >= 3) {
+    return `GH₵ ${val.toFixed(3)}`;
+  }
+  return `GH₵ ${val.toFixed(2)}`;
+}
+
 export async function GET() {
   try {
     const balanceGhs = await getSmsBalance();
@@ -16,11 +24,11 @@ export async function GET() {
       rateGhs,
       availableSms,
       currency: "GH₵",
-      formatted: `GH₵ ${balanceGhs.toFixed(2)}`,
+      formatted: formatCedi(balanceGhs),
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to load balance";
-    return NextResponse.json({ success: false, error: msg, balance: 50.0, balanceGhs: 50.0 }, { status: 500 });
+    return NextResponse.json({ success: false, error: msg, balance: 9.744, balanceGhs: 9.744 }, { status: 500 });
   }
 }
 
@@ -51,7 +59,7 @@ export async function POST(req: NextRequest) {
       rateGhs,
       availableSms,
       currency: "GH₵",
-      formatted: `GH₵ ${saved.toFixed(2)}`,
+      formatted: formatCedi(saved),
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to update balance";

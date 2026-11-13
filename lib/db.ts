@@ -474,7 +474,7 @@ export async function getSmsBalance(): Promise<number> {
   const initial =
     Number(process.env.INITIAL_SMS_BALANCE_GHS) ||
     Number(process.env.INITIAL_SMS_BALANCE) ||
-    50.0;
+    9.744;
   if (isPostgres()) {
     const pool = await initPg();
     const res = await pool.query(
