@@ -14,6 +14,7 @@ import {
   TelecelLogo,
   XCircleIcon,
 } from "./icons";
+import TrafficCharts from "./TrafficCharts";
 
 type Props = {
   refreshTrigger: number;
@@ -40,6 +41,7 @@ export default function StatsOverview({ refreshTrigger }: Props) {
     pending: 0,
     failed: 0,
   });
+  const [messages, setMessages] = useState<SmsRecord[]>([]);
 
   const [telcos, setTelcos] = useState<Record<"MTN" | "Telecel" | "AT", TelcoData>>({
     MTN: { total: 0, delivered: 0, failed: 0, pending: 0 },
@@ -57,6 +59,7 @@ export default function StatsOverview({ refreshTrigger }: Props) {
             setStats(data.stats);
           }
           if (Array.isArray(data.messages)) {
+            setMessages(data.messages);
             const nextTelcos: Record<"MTN" | "Telecel" | "AT", TelcoData> = {
               MTN: { total: 0, delivered: 0, failed: 0, pending: 0 },
               Telecel: { total: 0, delivered: 0, failed: 0, pending: 0 },
@@ -226,7 +229,10 @@ export default function StatsOverview({ refreshTrigger }: Props) {
         </div>
       </div>
 
-      {/* 3. Ghana Telco Distribution Bar & Operator Breakdowns */}
+      {/* 3. Interactive Traffic & Throughput Graphs */}
+      <TrafficCharts messages={messages} stats={stats} />
+
+      {/* 4. Ghana Telco Distribution Bar & Operator Breakdowns */}
       <div className="rounded-[28px] border border-ink/[0.08] bg-surface p-6 shadow-card space-y-6">
         <div>
           <h3 className="font-display text-lg font-bold text-ink">
