@@ -11,6 +11,7 @@ services:
       - SENDER_IDS=${SENDER_IDS}
       - CALLBACK_BASE_URL=${CALLBACK_BASE_URL}
       - PORT=3000
+      - HOSTNAME=0.0.0.0
     volumes:
       # Persistent volume ensuring messages and delivery reports survive restarts
       - ./data:/app/data

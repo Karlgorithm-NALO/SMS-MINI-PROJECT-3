@@ -18,6 +18,7 @@ RUN npm run build
 RUN mkdir -p /app/data
 
 ENV NODE_ENV=production
+ENV HOSTNAME="0.0.0.0"
 ENV PORT=3000
 
 EXPOSE 3000
