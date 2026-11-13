@@ -482,13 +482,13 @@ export async function getSmsBalance(): Promise<number> {
     );
     if (res.rows.length > 0) {
       const val = parseFloat(res.rows[0].value);
-      return isNaN(val) ? 0 : Number(val.toFixed(2));
+      return isNaN(val) ? 0 : Number(val.toFixed(4));
     }
     await pool.query(
       `INSERT INTO app_settings (key, value) VALUES ('sms_balance', $1) ON CONFLICT DO NOTHING`,
-      [String(initial.toFixed(2))]
+      [String(initial.toFixed(4))]
     );
-    return Number(initial.toFixed(2));
+    return Number(initial.toFixed(4));
   }
 
   const db = initSqlite();
@@ -497,25 +497,25 @@ export async function getSmsBalance(): Promise<number> {
     .get() as { value: string } | undefined;
   if (row) {
     const val = parseFloat(row.value);
-    return isNaN(val) ? 0 : Number(val.toFixed(2));
+    return isNaN(val) ? 0 : Number(val.toFixed(4));
   }
   db.prepare(
     `INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sms_balance', ?)`
-  ).run(String(initial.toFixed(2)));
-  return Number(initial.toFixed(2));
+  ).run(String(initial.toFixed(4)));
+  return Number(initial.toFixed(4));
 }
 
 /**
  * Updates the SMS balance in Ghana Cedis (GH₵).
  */
 export async function setSmsBalance(balanceGhs: number): Promise<number> {
-  const safeVal = Math.max(0, Number(balanceGhs.toFixed(2)));
+  const safeVal = Math.max(0, Number(balanceGhs.toFixed(4)));
   if (isPostgres()) {
     const pool = await initPg();
     await pool.query(
       `INSERT INTO app_settings (key, value) VALUES ('sms_balance', $1)
        ON CONFLICT (key) DO UPDATE SET value = $1`,
-      [String(safeVal.toFixed(2))]
+      [String(safeVal.toFixed(4))]
     );
     return safeVal;
   }
@@ -524,16 +524,16 @@ export async function setSmsBalance(balanceGhs: number): Promise<number> {
   db.prepare(`
     INSERT INTO app_settings (key, value) VALUES ('sms_balance', ?)
     ON CONFLICT (key) DO UPDATE SET value = ?
-  `).run(String(safeVal.toFixed(2)), String(safeVal.toFixed(2)));
+  `).run(String(safeVal.toFixed(4)), String(safeVal.toFixed(4)));
   return safeVal;
 }
 
 /**
  * Gets the configured SMS rate in GH₵ per message segment.
- * Defaults to GH₵ 0.04 (standard Nalo rate).
+ * Defaults to GH₵ 0.032 (Nalo Solutions rate).
  */
 export async function getSmsRate(): Promise<number> {
-  const defaultRate = Number(process.env.SMS_RATE_GHS) || 0.04;
+  const defaultRate = Number(process.env.SMS_RATE_GHS) || 0.032;
   if (isPostgres()) {
     const pool = await initPg();
     const res = await pool.query(
@@ -585,7 +585,7 @@ export async function setSmsRate(rateGhs: number): Promise<number> {
  */
 export async function deductSmsCost(costGhs: number): Promise<number> {
   const current = await getSmsBalance();
-  const updated = Math.max(0, Number((current - costGhs).toFixed(2)));
+  const updated = Math.max(0, Number((current - costGhs).toFixed(4)));
   return await setSmsBalance(updated);
 }
 

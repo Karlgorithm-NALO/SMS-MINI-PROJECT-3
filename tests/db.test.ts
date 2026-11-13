@@ -83,22 +83,26 @@ test("computes message delivery statistics correctly", async () => {
   assert.ok(stats.delivered >= 1);
 });
 
-test("accurately saves, retrieves, and deducts SMS balance in Ghana Cedis (GH₵)", async () => {
-  // Set an exact Cedi balance (e.g. GH₵ 45.50)
-  const saved = await setSmsBalance(45.50);
-  assert.equal(saved, 45.50);
+test("accurately saves, retrieves, and deducts SMS balance in Ghana Cedis (GH₵) with 0.032 rate", async () => {
+  // Set an exact Cedi balance (e.g. GH₵ 50.00)
+  const saved = await setSmsBalance(50.0);
+  assert.equal(saved, 50.0);
 
   const current = await getSmsBalance();
-  assert.equal(current, 45.50);
+  assert.equal(current, 50.0);
 
-  // Default rate should be 0.04 GH₵ per SMS segment
+  // Exact Nalo rate: GH₵ 0.032 per segment
   const rate = await getSmsRate();
-  assert.equal(rate, 0.04);
+  assert.equal(rate, 0.032);
 
-  // Deduct 2 segments: 2 * 0.04 = 0.08 GH₵
-  const afterDeduct = await deductSmsCost(0.08);
-  assert.equal(afterDeduct, 45.42);
+  // Deduct 5 contacts × 1 segment: 5 * 0.032 = 0.160 GH₵
+  const after5Contacts = await deductSmsCost(5 * 0.032);
+  assert.equal(after5Contacts, 49.84);
+
+  // Deduct 1 contact × 2 segments: 2 * 0.032 = 0.064 GH₵
+  const after2Segments = await deductSmsCost(2 * 0.032);
+  assert.equal(after2Segments, 49.776);
 
   const reloaded = await getSmsBalance();
-  assert.equal(reloaded, 45.42);
+  assert.equal(reloaded, 49.776);
 });

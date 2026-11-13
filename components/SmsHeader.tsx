@@ -24,17 +24,17 @@ export default function SmsHeader({
   const [newBalanceInput, setNewBalanceInput] = useState(
     balance !== null ? balance.toFixed(2) : "50.00"
   );
-  const [rateInput, setRateInput] = useState("0.04");
+  const [rateInput, setRateInput] = useState("0.032");
   const [saving, setSaving] = useState(false);
 
   const numBalance = balance !== null ? Number(balance) : 50.0;
-  const numRate = parseFloat(rateInput) || 0.04;
+  const numRate = parseFloat(rateInput) || 0.032;
   const availableSms = Math.floor(numBalance / numRate);
 
   async function handleSaveBalance() {
     const parsed = parseFloat(newBalanceInput);
     if (isNaN(parsed) || parsed < 0) return;
-    const parsedRate = parseFloat(rateInput) || 0.04;
+    const parsedRate = parseFloat(rateInput) || 0.032;
 
     setSaving(true);
     try {
@@ -182,7 +182,7 @@ export default function SmsHeader({
                     min="0.001"
                     value={rateInput}
                     onChange={(e) => setRateInput(e.target.value)}
-                    placeholder="0.04"
+                    placeholder="0.032"
                     className="w-full bg-transparent font-mono text-sm font-semibold text-ink focus:outline-none"
                   />
                   <span className="text-xs text-ink-faint shrink-0">/ SMS</span>
@@ -194,11 +194,11 @@ export default function SmsHeader({
                 <div className="flex items-center justify-between font-semibold text-ink">
                   <span>Available Capacity:</span>
                   <span className="font-mono font-bold text-accent-deep text-sm">
-                    ~{Math.floor((parseFloat(newBalanceInput) || 0) / (parseFloat(rateInput) || 0.04)).toLocaleString()} SMS
+                    ~{Math.floor((parseFloat(newBalanceInput) || 0) / (parseFloat(rateInput) || 0.032)).toLocaleString()} SMS
                   </span>
                 </div>
                 <p className="mt-1 text-[11px] text-ink-soft leading-tight">
-                  At GH₵ {(parseFloat(rateInput) || 0.04).toFixed(3)} per standard 160-character message.
+                  At GH₵ {(parseFloat(rateInput) || 0.032).toFixed(3)} per standard 160-character message segment.
                 </p>
               </div>
             </div>

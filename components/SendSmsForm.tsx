@@ -132,8 +132,9 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
     return calculateSmsSegments(message);
   }, [message]);
 
+  const smsRateGhs = 0.032; // Exact Nalo Solutions rate: GH₵ 0.032 per segment
   const totalSegments = allRecipientNumbers.length * smsSegments.segmentCount;
-  const estimatedCostGhs = totalSegments * 0.04;
+  const estimatedCostGhs = totalSegments * smsRateGhs;
   const isInsufficientBalance = balance !== null && balance < estimatedCostGhs;
 
   async function handleSubmit(e: React.FormEvent) {
@@ -515,10 +516,10 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
             <div className="flex items-center gap-2">
               <span className="font-semibold text-ink">Estimated Cost:</span>
               <span className="font-mono text-sm font-bold text-accent-deep">
-                GH₵ {estimatedCostGhs.toFixed(2)}
+                GH₵ {estimatedCostGhs.toFixed(3)}
               </span>
               <span className="text-[11px] text-ink-faint">
-                ({allRecipientNumbers.length} {allRecipientNumbers.length === 1 ? "number" : "numbers"} × {smsSegments.segmentCount} {smsSegments.segmentCount === 1 ? "segment" : "segments"} @ GH₵ 0.04)
+                ({allRecipientNumbers.length} contact{allRecipientNumbers.length > 1 ? "s" : ""} × {smsSegments.segmentCount} segment{smsSegments.segmentCount > 1 ? "s" : ""} @ GH₵ {smsRateGhs.toFixed(3)})
               </span>
             </div>
 
@@ -530,10 +531,10 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
                     isInsufficientBalance ? "text-danger-fg" : "text-ink"
                   }`}
                 >
-                  GH₵ {Math.max(0, Number(balance) - estimatedCostGhs).toFixed(2)}
+                  GH₵ {Math.max(0, Number(balance) - estimatedCostGhs).toFixed(3)}
                 </strong>
                 <span className="text-[11px] text-ink-faint">
-                  (Current: GH₵ {Number(balance).toFixed(2)})
+                  (Current: GH₵ {Number(balance).toFixed(3)})
                 </span>
               </div>
             )}
