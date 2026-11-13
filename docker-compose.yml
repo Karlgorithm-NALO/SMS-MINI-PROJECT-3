@@ -1,0 +1,27 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nalo-sms-app
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - SMS_API_KEY=${SMS_API_KEY}
+      - SENDER_IDS=${SENDER_IDS}
+      - CALLBACK_BASE_URL=${CALLBACK_BASE_URL}
+      - PORT=3000
+    volumes:
+      # Persistent volume ensuring messages and delivery reports survive restarts
+      - ./data:/app/data
+    restart: unless-stopped
+
+  # Optional Cloudflare Quick Tunnel for local testing without card/account
+  # Run with: docker compose --profile tunnel up
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://app:3000
+    depends_on:
+      - app
+    profiles:
+      - tunnel
