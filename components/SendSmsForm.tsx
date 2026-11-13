@@ -132,6 +132,10 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
     return calculateSmsSegments(message);
   }, [message]);
 
+  const totalSegments = allRecipientNumbers.length * smsSegments.segmentCount;
+  const estimatedCostGhs = totalSegments * 0.04;
+  const isInsufficientBalance = balance !== null && balance < estimatedCostGhs;
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setValidationError(null);
@@ -147,6 +151,14 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
 
     if (allRecipientNumbers.length === 0) {
       setValidationError("Please enter a valid 9-digit Ghanaian phone number (e.g. 55 881 6150).");
+      return;
+    }
+
+    // Check balance if available
+    if (isInsufficientBalance) {
+      setValidationError(
+        `Insufficient Nalo Balance: This dispatch costs GH₵ ${estimatedCostGhs.toFixed(2)}, but your current balance is GH₵ ${Number(balance).toFixed(2)}. Please top up or sync your balance.`
+      );
       return;
     }
 
@@ -491,22 +503,39 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
           </div>
         </div>
 
-        {/* Live Cost Calculation Preview */}
+        {/* Live Cost Calculation Preview in Ghana Cedis */}
         {allRecipientNumbers.length > 0 && message.trim().length > 0 && (
-          <div className="flex items-center justify-between rounded-xl bg-chip/80 px-4 py-2.5 text-xs text-ink-soft">
-            <span className="flex items-center gap-1.5">
+          <div
+            className={`flex items-center justify-between flex-wrap gap-2.5 rounded-2xl p-3.5 text-xs transition-colors ${
+              isInsufficientBalance
+                ? "border border-danger/30 bg-danger-bg text-danger-fg"
+                : "border border-ink/[0.06] bg-chip/70 text-ink-soft"
+            }`}
+          >
+            <div className="flex items-center gap-2">
               <span className="font-semibold text-ink">Estimated Cost:</span>
-              <span className="font-bold text-accent-deep">
-                {allRecipientNumbers.length * smsSegments.segmentCount} {allRecipientNumbers.length * smsSegments.segmentCount === 1 ? "Credit" : "Credits"}
+              <span className="font-mono text-sm font-bold text-accent-deep">
+                GH₵ {estimatedCostGhs.toFixed(2)}
               </span>
-              <span className="text-ink-faint">
-                ({allRecipientNumbers.length} recipient{allRecipientNumbers.length > 1 ? "s" : ""} × {smsSegments.segmentCount} segment{smsSegments.segmentCount > 1 ? "s" : ""})
-              </span>
-            </span>
-            {balance !== null && (
               <span className="text-[11px] text-ink-faint">
-                Balance after send: <strong className="font-mono text-ink">{Math.max(0, balance - allRecipientNumbers.length * smsSegments.segmentCount)}</strong>
+                ({allRecipientNumbers.length} {allRecipientNumbers.length === 1 ? "number" : "numbers"} × {smsSegments.segmentCount} {smsSegments.segmentCount === 1 ? "segment" : "segments"} @ GH₵ 0.04)
               </span>
+            </div>
+
+            {balance !== null && (
+              <div className="flex items-center gap-1.5 text-xs">
+                <span>Balance after send:</span>
+                <strong
+                  className={`font-mono font-bold ${
+                    isInsufficientBalance ? "text-danger-fg" : "text-ink"
+                  }`}
+                >
+                  GH₵ {Math.max(0, Number(balance) - estimatedCostGhs).toFixed(2)}
+                </strong>
+                <span className="text-[11px] text-ink-faint">
+                  (Current: GH₵ {Number(balance).toFixed(2)})
+                </span>
+              </div>
             )}
           </div>
         )}

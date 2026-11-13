@@ -21,18 +21,30 @@ export default function SmsHeader({
   onBalanceUpdated,
 }: Props) {
   const [isEditingBalance, setIsEditingBalance] = useState(false);
-  const [newBalanceInput, setNewBalanceInput] = useState(String(balance ?? 500));
+  const [newBalanceInput, setNewBalanceInput] = useState(
+    balance !== null ? balance.toFixed(2) : "50.00"
+  );
+  const [rateInput, setRateInput] = useState("0.04");
   const [saving, setSaving] = useState(false);
 
+  const numBalance = balance !== null ? Number(balance) : 50.0;
+  const numRate = parseFloat(rateInput) || 0.04;
+  const availableSms = Math.floor(numBalance / numRate);
+
   async function handleSaveBalance() {
-    const parsed = parseInt(newBalanceInput, 10);
+    const parsed = parseFloat(newBalanceInput);
     if (isNaN(parsed) || parsed < 0) return;
+    const parsedRate = parseFloat(rateInput) || 0.04;
+
     setSaving(true);
     try {
       const res = await fetch("/api/balance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ balance: parsed }),
+        body: JSON.stringify({
+          balanceGhs: parsed,
+          rateGhs: parsedRate,
+        }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -67,20 +79,23 @@ export default function SmsHeader({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-3">
-        {/* SMS Credit Balance Pill */}
+        {/* SMS Balance Pill in Ghana Cedis (GH₵) */}
         <button
           type="button"
           onClick={() => {
-            setNewBalanceInput(String(balance ?? 500));
+            setNewBalanceInput(numBalance.toFixed(2));
             setIsEditingBalance(true);
           }}
-          title="Click to view or sync credit balance with your Nalo portal"
+          title="Click to enter or sync your exact balance in Cedis from the Nalo portal"
           className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-accent-deep px-3.5 text-xs text-white shadow-hero transition hover:bg-accent cursor-pointer"
         >
           <CoinsIcon className="h-3.5 w-3.5 opacity-90" />
           <span className="font-medium opacity-85">Balance:</span>
           <span className="font-bold tabular-nums">
-            {balance !== null ? `${balance.toLocaleString()} Credits` : "500 Credits"}
+            GH₵ {numBalance.toFixed(2)}
+          </span>
+          <span className="hidden sm:inline text-[10px] opacity-80 font-normal">
+            (~{availableSms.toLocaleString()} SMS)
           </span>
         </button>
 
@@ -114,12 +129,15 @@ export default function SmsHeader({
 
       {/* Quick Balance Sync Modal */}
       {isEditingBalance && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm motion-safe:animate-fade-in">
           <div className="w-full max-w-sm rounded-[24px] border border-ink/[0.08] bg-surface p-6 shadow-pop">
             <div className="flex items-center justify-between border-b border-ink/[0.06] pb-3">
-              <h3 className="font-display text-base font-bold text-ink">
-                Sync SMS Balance
-              </h3>
+              <div className="flex items-center gap-2">
+                <CoinsIcon className="h-5 w-5 text-accent" />
+                <h3 className="font-display text-base font-bold text-ink">
+                  Sync Nalo Portal Balance
+                </h3>
+              </div>
               <button
                 type="button"
                 onClick={() => setIsEditingBalance(false)}
@@ -130,23 +148,59 @@ export default function SmsHeader({
             </div>
 
             <p className="mt-3 text-xs text-ink-soft leading-relaxed">
-              Enter your current credit balance from your Nalo Solutions portal to keep your dashboard in sync.
+              Enter your exact balance in <strong>Ghana Cedis (GH₵)</strong> from your Nalo Solutions portal. The system uses this exact amount to track and deduct SMS usage accurately.
             </p>
 
-            <div className="mt-4">
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-soft">
-                Remaining Credits
-              </label>
-              <input
-                type="number"
-                min="0"
-                value={newBalanceInput}
-                onChange={(e) => setNewBalanceInput(e.target.value)}
-                className="mt-1.5 w-full rounded-xl border border-ink/[0.12] bg-canvas/40 px-3.5 py-2 text-base font-bold text-ink focus:border-accent focus:bg-white focus:outline-none focus:ring-2 focus:ring-accent/20"
-              />
-              <p className="mt-1 text-[11px] text-ink-faint">
-                Estimated value: ~GH₵ {((Number(newBalanceInput) || 0) * 0.04).toFixed(2)} (at GH₵ 0.04/SMS)
-              </p>
+            <div className="mt-4 space-y-3.5">
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-soft">
+                  Portal Balance (in Cedis)
+                </label>
+                <div className="relative mt-1.5 flex items-center rounded-xl border border-ink/[0.12] bg-canvas/40 px-3.5 py-2 transition-colors focus-within:border-accent focus-within:bg-white focus-within:ring-2 focus-within:ring-accent/20">
+                  <span className="font-bold text-sm text-ink-soft mr-2">GH₵</span>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={newBalanceInput}
+                    onChange={(e) => setNewBalanceInput(e.target.value)}
+                    placeholder="e.g. 50.00"
+                    className="w-full bg-transparent font-mono text-base font-bold text-ink focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold uppercase tracking-wider text-ink-soft">
+                  Rate per SMS Segment
+                </label>
+                <div className="relative mt-1.5 flex items-center rounded-xl border border-ink/[0.12] bg-canvas/40 px-3.5 py-2 transition-colors focus-within:border-accent focus-within:bg-white focus-within:ring-2 focus-within:ring-accent/20">
+                  <span className="font-bold text-sm text-ink-soft mr-2">GH₵</span>
+                  <input
+                    type="number"
+                    step="0.001"
+                    min="0.001"
+                    value={rateInput}
+                    onChange={(e) => setRateInput(e.target.value)}
+                    placeholder="0.04"
+                    className="w-full bg-transparent font-mono text-sm font-semibold text-ink focus:outline-none"
+                  />
+                  <span className="text-xs text-ink-faint shrink-0">/ SMS</span>
+                </div>
+              </div>
+
+              {/* Calculated Capacity Preview */}
+              <div className="rounded-xl bg-accent-wash/60 p-3 border border-accent/20 text-xs">
+                <div className="flex items-center justify-between font-semibold text-ink">
+                  <span>Available Capacity:</span>
+                  <span className="font-mono font-bold text-accent-deep text-sm">
+                    ~{Math.floor((parseFloat(newBalanceInput) || 0) / (parseFloat(rateInput) || 0.04)).toLocaleString()} SMS
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-ink-soft leading-tight">
+                  At GH₵ {(parseFloat(rateInput) || 0.04).toFixed(3)} per standard 160-character message.
+                </p>
+              </div>
             </div>
 
             <div className="mt-5 flex items-center justify-end gap-2">
@@ -161,9 +215,9 @@ export default function SmsHeader({
                 type="button"
                 onClick={handleSaveBalance}
                 disabled={saving}
-                className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white shadow-primary hover:bg-accent-deep"
+                className="rounded-xl bg-accent px-4 py-2 text-xs font-bold text-white shadow-primary hover:bg-accent-deep active:scale-95 transition-all"
               >
-                {saving ? "Saving..." : "Update Balance"}
+                {saving ? "Saving..." : "Save Exact Balance"}
               </button>
             </div>
           </div>

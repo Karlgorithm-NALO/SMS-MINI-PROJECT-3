@@ -1,6 +1,6 @@
-import { deductSmsCredits, saveSentMessage, updateMessageDelivery } from "./db";
+import { deductSmsCost, deductSmsCredits, getSmsRate, saveSentMessage, updateMessageDelivery } from "./db";
 import type { SendRecipientResult, SendSmsResult } from "./types";
-import { parseRecipients } from "./validate";
+import { calculateSmsSegments, parseRecipients } from "./validate";
 
 export const DEFAULT_NALO_ENDPOINT =
   "https://sms.nalosolutions.com/smsbackend/clientapi/Resl_Nalo/send-message/";
@@ -273,8 +273,11 @@ export async function sendNaloSms(params: {
           rawResponse: responseText,
         });
 
-        // Deduct 1 credit per segment for this successfully dispatched recipient
-        await deductSmsCredits(1);
+        // Deduct accurate cost in Ghana Cedis (GH₵) based on message segment count
+        const { segmentCount } = calculateSmsSegments(params.message);
+        const smsRate = await getSmsRate();
+        const recipientCost = Math.max(1, segmentCount) * smsRate;
+        await deductSmsCost(recipientCost);
 
         // Auto-reconcile delivery after 4 seconds to guarantee fast, reliable feedback
         scheduleAutoDeliveryReconciliation({

@@ -3,9 +3,13 @@ import fs from "node:fs";
 import path from "node:path";
 import { test } from "node:test";
 import {
+  deductSmsCost,
   getAllMessages,
   getMessageStats,
+  getSmsBalance,
+  getSmsRate,
   saveSentMessage,
+  setSmsBalance,
   updateMessageDelivery,
 } from "../lib/db";
 
@@ -77,4 +81,24 @@ test("computes message delivery statistics correctly", async () => {
   const stats = await getMessageStats();
   assert.ok(stats.total >= 1);
   assert.ok(stats.delivered >= 1);
+});
+
+test("accurately saves, retrieves, and deducts SMS balance in Ghana Cedis (GH₵)", async () => {
+  // Set an exact Cedi balance (e.g. GH₵ 45.50)
+  const saved = await setSmsBalance(45.50);
+  assert.equal(saved, 45.50);
+
+  const current = await getSmsBalance();
+  assert.equal(current, 45.50);
+
+  // Default rate should be 0.04 GH₵ per SMS segment
+  const rate = await getSmsRate();
+  assert.equal(rate, 0.04);
+
+  // Deduct 2 segments: 2 * 0.04 = 0.08 GH₵
+  const afterDeduct = await deductSmsCost(0.08);
+  assert.equal(afterDeduct, 45.42);
+
+  const reloaded = await getSmsBalance();
+  assert.equal(reloaded, 45.42);
 });
