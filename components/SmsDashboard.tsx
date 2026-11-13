@@ -62,6 +62,7 @@ export default function SmsDashboard({ config }: Props) {
               <SendSmsForm
                 allowedSenderIds={config.senderIds}
                 onMessageSent={handleMessageSent}
+                balance={balance}
               />
             </div>
 

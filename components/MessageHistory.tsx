@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { SmsRecord } from "@/lib/types";
-import { formatPhoneNumber } from "@/lib/validate";
+import { detectCarrier, formatPhoneNumber } from "@/lib/validate";
 import {
   AlertIcon,
   CheckIcon,
@@ -66,6 +66,24 @@ export default function MessageHistory({ refreshTrigger }: Props) {
     setCopiedId(text);
     setTimeout(() => setCopiedId(null), 2000);
   }
+
+  const counts = useMemo(() => {
+    let delivered = 0;
+    let failed = 0;
+    let pending = 0;
+    for (const msg of messages) {
+      const s = msg.status.toUpperCase();
+      if (s.includes("DELIV")) delivered++;
+      else if (s.includes("FAIL") || s.includes("UNDELIV") || s.includes("REJECT")) failed++;
+      else pending++;
+    }
+    return {
+      ALL: messages.length,
+      DELIVERED: delivered,
+      PENDING: pending,
+      FAILED: failed,
+    };
+  }, [messages]);
 
   // Filter messages
   const filteredMessages = messages.filter((msg) => {
@@ -195,20 +213,38 @@ export default function MessageHistory({ refreshTrigger }: Props) {
       {/* Filter and Search Bar */}
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-1 rounded-2xl bg-canvas p-1 text-xs font-semibold">
-          {(["ALL", "DELIVERED", "PENDING", "FAILED"] as const).map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setFilter(tab)}
-              className={`rounded-xl px-3 py-1.5 transition-all ${
-                filter === tab
-                  ? "bg-white text-ink shadow-sm"
-                  : "text-ink-soft hover:text-ink"
-              }`}
-            >
-              {tab.charAt(0) + tab.slice(1).toLowerCase()}
-            </button>
-          ))}
+          {(["ALL", "DELIVERED", "PENDING", "FAILED"] as const).map((tab) => {
+            const count = counts[tab];
+            return (
+              <button
+                key={tab}
+                type="button"
+                onClick={() => setFilter(tab)}
+                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition-all ${
+                  filter === tab
+                    ? "bg-white text-ink shadow-sm"
+                    : "text-ink-soft hover:text-ink"
+                }`}
+              >
+                <span>{tab.charAt(0) + tab.slice(1).toLowerCase()}</span>
+                {count > 0 && (
+                  <span
+                    className={`rounded-full px-1.5 py-0.2 text-[10px] font-bold ${
+                      filter === tab
+                        ? tab === "DELIVERED"
+                          ? "bg-success-bg text-success-fg"
+                          : tab === "FAILED"
+                          ? "bg-danger-bg text-danger-fg"
+                          : "bg-chip text-ink"
+                        : "bg-chip text-ink-soft"
+                    }`}
+                  >
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         <div className="w-full sm:w-64">
@@ -294,7 +330,20 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                     </td>
 
                     <td className="py-3.5 px-3 font-mono text-ink whitespace-nowrap">
-                      {formatPhoneNumber(msg.recipient)}
+                      <div className="flex items-center gap-1.5">
+                        {(() => {
+                          const carrier = detectCarrier(msg.recipient);
+                          return (
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${carrier.badge}`}
+                              title={`${carrier.name} Ghana`}
+                            >
+                              {carrier.name}
+                            </span>
+                          );
+                        })()}
+                        <span>{formatPhoneNumber(msg.recipient)}</span>
+                      </div>
                     </td>
 
                     <td className="py-3.5 px-3 max-w-[200px] truncate text-ink-body" title={msg.message}>
@@ -307,9 +356,26 @@ export default function MessageHistory({ refreshTrigger }: Props) {
 
                     <td className="py-3.5 px-3 whitespace-nowrap">
                       {msg.delivered_at ? (
-                        <span className="text-success-fg font-medium">
-                          {formatDate(msg.delivered_at)}
-                        </span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-success-fg font-medium">
+                            {formatDate(msg.delivered_at)}
+                          </span>
+                          {(() => {
+                            try {
+                              const diffSec = Math.round(
+                                (new Date(msg.delivered_at).getTime() - new Date(msg.sent_at).getTime()) / 1000
+                              );
+                              if (diffSec >= 0 && diffSec < 3600) {
+                                return (
+                                  <span className="rounded bg-success-bg px-1.5 py-0.5 text-[10px] font-semibold text-success-fg">
+                                    +{diffSec}s
+                                  </span>
+                                );
+                              }
+                            } catch {}
+                            return null;
+                          })()}
+                        </div>
                       ) : (
                         <span className="text-ink-faint italic">Awaiting callback</span>
                       )}

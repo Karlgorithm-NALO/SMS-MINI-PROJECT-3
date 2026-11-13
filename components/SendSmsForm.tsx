@@ -2,16 +2,17 @@
 
 import { useMemo, useState } from "react";
 import type { SendSmsResult } from "@/lib/types";
-import { calculateSmsSegments, parseRecipients, validateSmsForm } from "@/lib/validate";
+import { calculateSmsSegments, detectCarrier, parseRecipients, validateSmsForm } from "@/lib/validate";
 import { PaperPlaneIcon, PhoneIcon, SpinnerIcon, XCircleIcon } from "./icons";
 import SmsFeedback from "./SmsFeedback";
 
 type Props = {
   allowedSenderIds: string[];
   onMessageSent: () => void;
+  balance?: number | null;
 };
 
-export default function SendSmsForm({ allowedSenderIds, onMessageSent }: Props) {
+export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance = null }: Props) {
   const [numbersInput, setNumbersInput] = useState("");
   const [senderId, setSenderId] = useState(allowedSenderIds[0] || "");
   const [message, setMessage] = useState("");
@@ -169,13 +170,33 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent }: Props) 
             <label htmlFor="recipient-numbers" className="block text-xs font-bold uppercase tracking-wider text-ink-soft">
               Recipient Phone Number(s) <span className="text-accent">*</span>
             </label>
-            <button
-              type="button"
-              onClick={() => handleUseSample("233241234567, 233501234567", "Hello from Nalo SMS Platform! This is a test message.")}
-              className="text-[11px] font-semibold text-accent hover:underline"
-            >
-              Fill sample numbers
-            </button>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[11px] text-ink-faint">Samples:</span>
+              <button
+                type="button"
+                onClick={() => handleUseSample("233558816150", "Test message from Nalo SMS platform.")}
+                className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 hover:bg-amber-200 transition-colors"
+                title="Fill sample MTN number"
+              >
+                + MTN
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUseSample("233201234567", "Test message from Nalo SMS platform.")}
+                className="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-900 hover:bg-rose-200 transition-colors"
+                title="Fill sample Telecel number"
+              >
+                + Telecel
+              </button>
+              <button
+                type="button"
+                onClick={() => handleUseSample("233271234567", "Test message from Nalo SMS platform.")}
+                className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-900 hover:bg-blue-200 transition-colors"
+                title="Fill sample AT number"
+              >
+                + AT
+              </button>
+            </div>
           </div>
           <div className="relative mt-1.5">
             <input
@@ -198,18 +219,23 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent }: Props) 
             One or more numbers, comma-separated, in international format (e.g. <strong>233XXXXXXXXX</strong>). Digits only.
           </p>
 
-          {/* Live parsed badges for instant feedback */}
+          {/* Live parsed badges with Ghanaian Carrier Detection */}
           {numbersInput.trim().length > 0 && (
             <div className="mt-2.5 flex flex-wrap gap-1.5">
-              {recipientAnalysis.validNumbers.map((num) => (
-                <span
-                  key={num}
-                  className="inline-flex items-center gap-1 rounded-lg border border-success/30 bg-success-bg px-2.5 py-1 text-xs font-mono font-medium text-success-fg"
-                >
-                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                  {num}
-                </span>
-              ))}
+              {recipientAnalysis.validNumbers.map((num) => {
+                const carrier = detectCarrier(num);
+                return (
+                  <span
+                    key={num}
+                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-mono font-medium ${carrier.bg} ${carrier.color}`}
+                  >
+                    <span className={`rounded px-1 text-[10px] font-bold ${carrier.badge}`}>
+                      {carrier.name}
+                    </span>
+                    {num}
+                  </span>
+                );
+              })}
               {recipientAnalysis.invalidEntries.map((inv, idx) => (
                 <span
                   key={idx}
@@ -255,6 +281,22 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent }: Props) 
             />
           </div>
 
+          {/* Visual Segment Progress Bar */}
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-chip">
+            <div
+              className={`h-full transition-all duration-200 ${
+                smsSegments.segmentCount > 1
+                  ? "bg-accent-deep"
+                  : smsSegments.charsRemainingInSegment <= 20
+                  ? "bg-amber-500"
+                  : "bg-accent"
+              }`}
+              style={{
+                width: `${Math.min(100, smsSegments.charCount > 0 ? ((smsSegments.charCount % (smsSegments.segmentCapacity || 160)) / (smsSegments.segmentCapacity || 160)) * 100 || 100 : 0)}%`,
+              }}
+            />
+          </div>
+
           {/* Live Segment and Encoding Indicators */}
           <div className="mt-1.5 flex flex-wrap items-center justify-between gap-2 text-xs">
             <div className="flex items-center gap-2 text-ink-soft">
@@ -273,6 +315,26 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent }: Props) 
             )}
           </div>
         </div>
+
+        {/* Live Cost Calculation Preview */}
+        {recipientAnalysis.validNumbers.length > 0 && message.trim().length > 0 && (
+          <div className="flex items-center justify-between rounded-xl bg-chip/80 px-4 py-2.5 text-xs text-ink-soft">
+            <span className="flex items-center gap-1.5">
+              <span className="font-semibold text-ink">Estimated Cost:</span>
+              <span className="font-bold text-accent-deep">
+                {recipientAnalysis.validNumbers.length * smsSegments.segmentCount} {recipientAnalysis.validNumbers.length * smsSegments.segmentCount === 1 ? "Credit" : "Credits"}
+              </span>
+              <span className="text-ink-faint">
+                ({recipientAnalysis.validNumbers.length} recipient{recipientAnalysis.validNumbers.length > 1 ? "s" : ""} × {smsSegments.segmentCount} segment{smsSegments.segmentCount > 1 ? "s" : ""})
+              </span>
+            </span>
+            {balance !== null && (
+              <span className="text-[11px] text-ink-faint">
+                Balance after send: <strong className="font-mono text-ink">{Math.max(0, balance - recipientAnalysis.validNumbers.length * smsSegments.segmentCount)}</strong>
+              </span>
+            )}
+          </div>
+        )}
 
         {/* 4. Send Button */}
         <div className="pt-2">

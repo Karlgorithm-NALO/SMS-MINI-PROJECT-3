@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LogoMark, SignalIcon } from "./icons";
+import { CoinsIcon, LogoMark, SignalIcon } from "./icons";
 
 export const CONTAINER = "mx-auto w-full max-w-[80rem] px-4 sm:px-6 lg:px-10";
 
@@ -77,6 +77,7 @@ export default function SmsHeader({
           title="Click to view or sync credit balance with your Nalo portal"
           className="inline-flex h-9 items-center gap-1.5 whitespace-nowrap rounded-full bg-accent-deep px-3.5 text-xs text-white shadow-hero transition hover:bg-accent cursor-pointer"
         >
+          <CoinsIcon className="h-3.5 w-3.5 opacity-90" />
           <span className="font-medium opacity-85">Balance:</span>
           <span className="font-bold tabular-nums">
             {balance !== null ? `${balance.toLocaleString()} Credits` : "500 Credits"}

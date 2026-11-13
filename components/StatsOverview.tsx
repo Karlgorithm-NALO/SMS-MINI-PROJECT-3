@@ -47,7 +47,7 @@ export default function StatsOverview({ refreshTrigger }: Props) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
       {/* 1. Total Sent */}
-      <div className="rounded-2xl border border-ink/[0.08] bg-surface p-4 sm:p-5 shadow-card">
+      <div className="rounded-2xl border border-ink/[0.08] bg-surface p-4 sm:p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-ink-soft">
             Total Messages
@@ -63,7 +63,7 @@ export default function StatsOverview({ refreshTrigger }: Props) {
       </div>
 
       {/* 2. Delivered */}
-      <div className="rounded-2xl border border-success/20 bg-surface p-4 sm:p-5 shadow-card">
+      <div className="rounded-2xl border border-success/20 bg-surface p-4 sm:p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-success-fg">
             Delivered
@@ -77,8 +77,8 @@ export default function StatsOverview({ refreshTrigger }: Props) {
             {stats.delivered}
           </span>
           {stats.total > 0 && (
-            <span className="text-xs font-semibold text-success-fg">
-              ({deliveryRate}%)
+            <span className="inline-flex items-center rounded-full bg-success-bg px-2 py-0.5 text-xs font-semibold text-success-fg">
+              {deliveryRate}% rate
             </span>
           )}
         </div>
@@ -86,7 +86,7 @@ export default function StatsOverview({ refreshTrigger }: Props) {
       </div>
 
       {/* 3. Pending Callbacks */}
-      <div className="rounded-2xl border border-amber-500/20 bg-surface p-4 sm:p-5 shadow-card">
+      <div className="rounded-2xl border border-amber-500/20 bg-surface p-4 sm:p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-amber-700">
             Awaiting DLR
@@ -102,7 +102,7 @@ export default function StatsOverview({ refreshTrigger }: Props) {
       </div>
 
       {/* 4. Failed */}
-      <div className="rounded-2xl border border-danger/20 bg-surface p-4 sm:p-5 shadow-card">
+      <div className="rounded-2xl border border-danger/20 bg-surface p-4 sm:p-5 shadow-card transition-all duration-200 hover:-translate-y-0.5 hover:shadow-pop">
         <div className="flex items-center justify-between">
           <span className="text-xs font-bold uppercase tracking-wider text-danger-fg">
             Failed / Undelivered
