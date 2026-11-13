@@ -1,4 +1,4 @@
-import { getAllMessages, getMessageStats, updateMessageDelivery } from "@/lib/db";
+import { getAllMessages, getMessageStats, seedInitialDataIfEmpty, updateMessageDelivery } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +7,12 @@ export const runtime = "nodejs";
 export async function GET() {
   try {
     let messages = await getAllMessages(100);
+
+    // If database is empty (e.g. freshly deployed container on Render), auto-seed the historical messages
+    if (messages.length === 0) {
+      await seedInitialDataIfEmpty();
+      messages = await getAllMessages(100);
+    }
 
     // Fast auto-reconciliation: If any message was successfully submitted >4s ago
     // but telecom carrier callback is delayed, auto-confirm delivery
