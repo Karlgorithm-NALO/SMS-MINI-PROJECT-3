@@ -250,3 +250,138 @@ export function GhanaFlag({ className = "h-4 w-6" }: { className?: string }) {
     </svg>
   );
 }
+
+/** Official MTN Ghana Brandmark Logo */
+export function MtnLogo({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className={`shrink-0 overflow-hidden rounded-md shadow-xs ${className}`}
+      aria-label="MTN Ghana"
+    >
+      <rect width="32" height="32" rx="6" fill="#FFCC00" />
+      <ellipse cx="16" cy="16" rx="12.5" ry="8" fill="none" stroke="#001C38" strokeWidth="1.6" />
+      {/* 'M' */}
+      <path
+        d="M 8.5 19.5 V 12.5 L 11 16.5 L 13.5 12.5 V 19.5"
+        fill="none"
+        stroke="#001C38"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* 'T' */}
+      <path
+        d="M 14.5 12.5 H 18.5 M 16.5 12.5 V 19.5"
+        fill="none"
+        stroke="#001C38"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      {/* 'N' */}
+      <path
+        d="M 19.5 19.5 V 12.5 L 23.5 19.5 V 12.5"
+        fill="none"
+        stroke="#001C38"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** Official Telecel Ghana Brandmark Logo */
+export function TelecelLogo({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className={`shrink-0 overflow-hidden rounded-md shadow-xs ${className}`}
+      aria-label="Telecel Ghana"
+    >
+      <rect width="32" height="32" rx="6" fill="#E60000" />
+      <path
+        d="M 16 6.5 C 10.75 6.5 6.5 10.75 6.5 16 C 6.5 21.25 10.75 25.5 16 25.5 C 21.25 25.5 25.5 21.25 25.5 16 C 25.5 12.2 23.2 8.9 20 7.4"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M 16 11.5 C 13.5 11.5 11.5 13.5 11.5 16 C 11.5 18.5 13.5 20.5 16 20.5 C 18.5 20.5 20.5 18.5 20.5 16"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+      />
+      <circle cx="16" cy="16" r="2.2" fill="#FFFFFF" />
+    </svg>
+  );
+}
+
+/** Official AT Ghana Brandmark Logo (formerly AirtelTigo) */
+export function AtLogo({ className = "h-4 w-4" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 32 32"
+      className={`shrink-0 overflow-hidden rounded-md border border-slate-200/80 shadow-xs ${className}`}
+      aria-label="AT Ghana"
+    >
+      <rect width="32" height="32" rx="6" fill="#FFFFFF" />
+      {/* 'a' in Royal Blue */}
+      <circle cx="11.5" cy="16.5" r="4" fill="none" stroke="#005BA6" strokeWidth="2.4" />
+      <path d="M 15.5 12.5 V 20.5" stroke="#005BA6" strokeWidth="2.4" strokeLinecap="round" />
+      {/* 't' in Vibrant Red */}
+      <path
+        d="M 19 10.5 V 18 C 19 19.8 20 20.5 21.5 20.5"
+        stroke="#EE3124"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        fill="none"
+      />
+      <path d="M 17 13.5 H 22" stroke="#EE3124" strokeWidth="2.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Unified Telco Logo dispatcher */
+export function TelcoLogo({
+  carrier,
+  className = "h-4 w-4",
+}: {
+  carrier?: string | null;
+  className?: string;
+}) {
+  const norm = carrier?.trim().toLowerCase();
+  if (norm === "mtn") {
+    return <MtnLogo className={className} />;
+  }
+  if (norm === "telecel" || norm === "vodafone") {
+    return <TelecelLogo className={className} />;
+  }
+  if (norm === "at" || norm === "airteltigo" || norm === "tigo" || norm === "airtel") {
+    return <AtLogo className={className} />;
+  }
+  if (norm === "ghana") {
+    return <GhanaFlag className={className} />;
+  }
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={2}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={`shrink-0 text-ink-soft ${className}`}
+      aria-label="Network"
+    >
+      <path d="M2 20h.01" />
+      <path d="M7 20v-4" />
+      <path d="M12 20v-8" />
+      <path d="M17 20V8" />
+      <path d="M22 20V4" />
+    </svg>
+  );
+}

@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import type { SendSmsResult } from "@/lib/types";
-import { CheckIcon, CopyIcon, XCircleIcon } from "./icons";
+import { detectCarrier, formatPhoneNumber } from "@/lib/validate";
+import { CheckIcon, CopyIcon, TelcoLogo, XCircleIcon } from "./icons";
 
 type Props = {
   feedback: SendSmsResult | null;
@@ -87,24 +88,35 @@ export default function SmsFeedback({ feedback, onDismiss }: Props) {
           {feedback.results && feedback.results.length > 1 && (
             <div className="mt-3 space-y-1.5 border-t border-black/5 pt-3">
               <p className="text-xs font-semibold uppercase tracking-wider opacity-75">
-                Recipients Detail:
+                Recipients by Telco:
               </p>
-              <div className="max-h-36 overflow-y-auto space-y-1 text-xs">
-                {feedback.results.map((res, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center justify-between rounded-lg bg-white/60 px-2.5 py-1 text-ink"
-                  >
-                    <span className="font-mono">{res.recipient}</span>
-                    <span
-                      className={`font-semibold ${
-                        res.success ? "text-success-fg" : "text-danger-fg"
-                      }`}
+              <div className="max-h-40 overflow-y-auto space-y-1.5 text-xs">
+                {feedback.results.map((res, i) => {
+                  const carrier = detectCarrier(res.recipient);
+                  return (
+                    <div
+                      key={i}
+                      className="flex items-center justify-between gap-2 rounded-xl bg-white/70 px-3 py-1.5 text-ink shadow-xs"
                     >
-                      {res.success ? `ID: ${res.messageId}` : res.error}
-                    </span>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-2 font-mono">
+                        <TelcoLogo carrier={carrier.name} className="h-4 w-4" />
+                        <span className={`rounded px-1.5 py-0.2 text-[10px] font-bold font-sans ${carrier.badge}`}>
+                          {carrier.name}
+                        </span>
+                        <span className="font-semibold text-ink">
+                          {formatPhoneNumber(res.recipient)}
+                        </span>
+                      </div>
+                      <span
+                        className={`font-semibold shrink-0 ${
+                          res.success ? "text-success-fg" : "text-danger-fg"
+                        }`}
+                      >
+                        {res.success ? `ID: ${res.messageId}` : res.error}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}

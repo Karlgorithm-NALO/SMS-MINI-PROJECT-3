@@ -5,12 +5,16 @@ import type { SmsRecord } from "@/lib/types";
 import { detectCarrier, formatPhoneNumber } from "@/lib/validate";
 import {
   AlertIcon,
+  AtLogo,
   CheckIcon,
   ClockIcon,
   CopyIcon,
+  MtnLogo,
   RefreshIcon,
   SpinnerIcon,
   TableIcon,
+  TelecelLogo,
+  TelcoLogo,
   XCircleIcon,
 } from "./icons";
 
@@ -23,6 +27,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [filter, setFilter] = useState<"ALL" | "DELIVERED" | "PENDING" | "FAILED">("ALL");
+  const [telcoFilter, setTelcoFilter] = useState<"ALL" | "MTN" | "Telecel" | "AT">("ALL");
   const [searchQuery, setSearchQuery] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [autoPoll, setAutoPoll] = useState(true);
@@ -85,8 +90,33 @@ export default function MessageHistory({ refreshTrigger }: Props) {
     };
   }, [messages]);
 
+  // Count messages by Telco
+  const telcoCounts = useMemo(() => {
+    let mtn = 0;
+    let telecel = 0;
+    let at = 0;
+    for (const msg of messages) {
+      const carrier = detectCarrier(msg.recipient);
+      if (carrier.name === "MTN") mtn++;
+      else if (carrier.name === "Telecel") telecel++;
+      else if (carrier.name === "AT") at++;
+    }
+    return {
+      ALL: messages.length,
+      MTN: mtn,
+      Telecel: telecel,
+      AT: at,
+    };
+  }, [messages]);
+
   // Filter messages
   const filteredMessages = messages.filter((msg) => {
+    // Telco filter
+    if (telcoFilter !== "ALL") {
+      const carrier = detectCarrier(msg.recipient);
+      if (carrier.name !== telcoFilter) return false;
+    }
+
     // Filter tab
     if (filter === "DELIVERED" && !msg.status.toUpperCase().includes("DELIV")) return false;
     if (
@@ -258,6 +288,64 @@ export default function MessageHistory({ refreshTrigger }: Props) {
         </div>
       </div>
 
+      {/* Telco Network Filter Pills */}
+      <div className="mt-3 flex items-center gap-1.5 flex-wrap text-xs">
+        <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider mr-1">
+          Filter by Telco:
+        </span>
+        <button
+          type="button"
+          onClick={() => setTelcoFilter("ALL")}
+          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold transition-all ${
+            telcoFilter === "ALL"
+              ? "bg-ink text-white shadow-xs"
+              : "bg-canvas text-ink-soft hover:bg-chip hover:text-ink"
+          }`}
+        >
+          <span>All Networks</span>
+          <span className="opacity-75 text-[10px]">({telcoCounts.ALL})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTelcoFilter("MTN")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all ${
+            telcoFilter === "MTN"
+              ? "border-amber-400 bg-[#FFCC00] text-[#001C38] font-bold shadow-xs ring-2 ring-amber-300/60"
+              : "border-amber-200/80 bg-amber-50/80 text-amber-950 hover:bg-amber-100"
+          }`}
+        >
+          <MtnLogo className="h-3.5 w-3.5" />
+          <span>MTN</span>
+          <span className="text-[10px] opacity-75 font-mono">({telcoCounts.MTN})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTelcoFilter("Telecel")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all ${
+            telcoFilter === "Telecel"
+              ? "border-rose-400 bg-[#E60000] text-white font-bold shadow-xs ring-2 ring-rose-300/60"
+              : "border-rose-200/80 bg-rose-50/80 text-rose-950 hover:bg-rose-100"
+          }`}
+        >
+          <TelecelLogo className="h-3.5 w-3.5" />
+          <span>Telecel</span>
+          <span className="text-[10px] opacity-75 font-mono">({telcoCounts.Telecel})</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setTelcoFilter("AT")}
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all ${
+            telcoFilter === "AT"
+              ? "border-blue-400 bg-[#005BA6] text-white font-bold shadow-xs ring-2 ring-blue-300/60"
+              : "border-blue-200/80 bg-blue-50/80 text-blue-950 hover:bg-blue-100"
+          }`}
+        >
+          <AtLogo className="h-3.5 w-3.5" />
+          <span>AT</span>
+          <span className="text-[10px] opacity-75 font-mono">({telcoCounts.AT})</span>
+        </button>
+      </div>
+
       {/* Table Content */}
       <div className="mt-4 overflow-x-auto">
         {isLoading ? (
@@ -330,19 +418,22 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                     </td>
 
                     <td className="py-3.5 px-3 font-mono text-ink whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
+                      <div className="flex items-center gap-2">
                         {(() => {
                           const carrier = detectCarrier(msg.recipient);
                           return (
-                            <span
-                              className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${carrier.badge}`}
-                              title={`${carrier.name} Ghana`}
-                            >
-                              {carrier.name}
-                            </span>
+                            <>
+                              <TelcoLogo carrier={carrier.name} className="h-4 w-4" />
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[10px] font-bold font-sans ${carrier.badge}`}
+                                title={`${carrier.fullName || carrier.name}`}
+                              >
+                                {carrier.name}
+                              </span>
+                              <span className="font-semibold text-ink">{formatPhoneNumber(msg.recipient)}</span>
+                            </>
                           );
                         })()}
-                        <span>{formatPhoneNumber(msg.recipient)}</span>
                       </div>
                     </td>
 
@@ -422,7 +513,32 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                   {selectedMsg.message}
                 </div>
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2.5">
+                <div>
+                  <span className="font-semibold text-ink-soft">Recipient & Mobile Carrier: </span>
+                  <div className="mt-1 flex items-center gap-2.5 rounded-xl bg-white p-2.5 border border-ink/[0.06]">
+                    {(() => {
+                      const carrier = detectCarrier(selectedMsg.recipient);
+                      return (
+                        <>
+                          <TelcoLogo carrier={carrier.name} className="h-5 w-5" />
+                          <div>
+                            <div className="flex items-center gap-1.5 font-bold text-ink">
+                              <span>{carrier.fullName || carrier.name}</span>
+                              <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${carrier.badge}`}>
+                                {carrier.name}
+                              </span>
+                            </div>
+                            <div className="font-mono text-xs text-ink-soft">
+                              {formatPhoneNumber(selectedMsg.recipient)}
+                            </div>
+                          </div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
                 <div>
                   <span className="font-semibold text-ink-soft">Gateway Response: </span>
                   <code className="font-mono text-ink bg-white px-2 py-0.5 rounded border border-ink/[0.06]">

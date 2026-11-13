@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { SendSmsResult } from "@/lib/types";
 import { calculateSmsSegments, detectCarrier, formatPhoneNumber, parseRecipients, validateSmsForm } from "@/lib/validate";
-import { GhanaFlag, PaperPlaneIcon, SpinnerIcon, XCircleIcon } from "./icons";
+import { AtLogo, GhanaFlag, MtnLogo, PaperPlaneIcon, SpinnerIcon, TelecelLogo, TelcoLogo, XCircleIcon } from "./icons";
 import SmsFeedback from "./SmsFeedback";
 
 type Props = {
@@ -56,6 +56,16 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
   // Combined string passed to validator and backend
   const numbersInput = useMemo(() => {
     return allRecipientNumbers.join(", ");
+  }, [allRecipientNumbers]);
+
+  // Breakdown of recipients grouped by Telco
+  const carrierBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const num of allRecipientNumbers) {
+      const c = detectCarrier(num);
+      counts[c.name] = (counts[c.name] || 0) + 1;
+    }
+    return Object.entries(counts).map(([name, count]) => ({ name, count }));
   }, [allRecipientNumbers]);
 
   function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -262,35 +272,38 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
 
         {/* 2. Recipient Phone Numbers Field with Ghana Flag +233 prefix */}
         <div>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
             <label htmlFor="recipient-numbers" className="block text-xs font-bold uppercase tracking-wider text-ink-soft">
               Recipient Phone Number <span className="text-accent">*</span>
             </label>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[11px] text-ink-faint">Samples:</span>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <span className="text-[11px] font-semibold text-ink-faint">Test Numbers:</span>
               <button
                 type="button"
-                onClick={() => handleUseSample("558816150", "Test message from Nalo SMS platform via MTN.")}
-                className="rounded-md bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-900 hover:bg-amber-200 transition-colors"
-                title="Fill sample MTN number"
+                onClick={() => handleUseSample("558816150", "Test message from Nalo SMS platform via MTN Ghana.")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50/90 px-2 py-0.5 text-[11px] font-bold text-amber-950 hover:bg-amber-100 hover:border-amber-400 active:scale-95 transition-all shadow-xs"
+                title="Fill sample MTN number (055 881 6150)"
               >
-                + MTN
+                <MtnLogo className="h-3.5 w-3.5" />
+                <span>MTN (055)</span>
               </button>
               <button
                 type="button"
-                onClick={() => handleUseSample("201234567", "Test message from Nalo SMS platform via Telecel.")}
-                className="rounded-md bg-rose-100 px-2 py-0.5 text-[10px] font-bold text-rose-900 hover:bg-rose-200 transition-colors"
-                title="Fill sample Telecel number"
+                onClick={() => handleUseSample("201234567", "Test message from Nalo SMS platform via Telecel Ghana.")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50/90 px-2 py-0.5 text-[11px] font-bold text-rose-950 hover:bg-rose-100 hover:border-rose-400 active:scale-95 transition-all shadow-xs"
+                title="Fill sample Telecel number (020 123 4567)"
               >
-                + Telecel
+                <TelecelLogo className="h-3.5 w-3.5" />
+                <span>Telecel (020)</span>
               </button>
               <button
                 type="button"
-                onClick={() => handleUseSample("271234567", "Test message from Nalo SMS platform via AT.")}
-                className="rounded-md bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-900 hover:bg-blue-200 transition-colors"
-                title="Fill sample AT number"
+                onClick={() => handleUseSample("271234567", "Test message from Nalo SMS platform via AT Ghana.")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50/90 px-2 py-0.5 text-[11px] font-bold text-blue-950 hover:bg-blue-100 hover:border-blue-400 active:scale-95 transition-all shadow-xs"
+                title="Fill sample AT number (027 123 4567)"
               >
-                + AT
+                <AtLogo className="h-3.5 w-3.5" />
+                <span>AT (027)</span>
               </button>
             </div>
           </div>
@@ -324,15 +337,18 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               className="w-full bg-transparent px-3.5 py-3 font-mono text-sm text-ink placeholder:font-sans placeholder:text-ink-faint focus:outline-none"
             />
 
-            {/* Right Status: Carrier Badge, Counter, Add Button */}
+            {/* Right Status: Carrier Badge with Logo, Counter, Add Button */}
             <div className="flex items-center gap-2 pr-3.5 shrink-0">
-              {currentCarrier && (
-                <span
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold ${currentCarrier.badge}`}
-                  title={`${currentCarrier.name} Network`}
+              {currentCarrier && currentCarrier.name !== "Unknown" && (
+                <div
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-ink/[0.08] bg-surface px-2 py-0.5 shadow-xs"
+                  title={`${currentCarrier.fullName || currentCarrier.name} Network`}
                 >
-                  {currentCarrier.name}
-                </span>
+                  <TelcoLogo carrier={currentCarrier.name} className="h-3.5 w-3.5" />
+                  <span className="text-[11px] font-bold text-ink">
+                    {currentCarrier.name}
+                  </span>
+                </div>
               )}
               <span className="font-mono text-[11px] text-ink-faint">
                 {phoneDigits.length}/9
@@ -341,7 +357,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
                 <button
                   type="button"
                   onClick={addCurrentPhoneToRecipients}
-                  className="rounded-lg bg-chip px-2.5 py-1 text-[11px] font-semibold text-ink hover:bg-chip-strong transition-colors"
+                  className="inline-flex items-center gap-1 rounded-lg bg-accent px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-accent-deep active:scale-95 transition-all"
                   title="Add to multiple recipient list"
                 >
                   + Add
@@ -354,27 +370,29 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
             Ghana number format (+233 fixed). Enter remaining <strong>9 digits</strong> (leading 0 auto-disappears, max 9 digits).
           </p>
 
-          {/* Recipient Chips List */}
+          {/* Recipient Chips List with Telco Logos */}
           {allRecipientNumbers.length > 0 && (
-            <div className="mt-2.5 flex flex-wrap gap-1.5">
+            <div className="mt-2.5 flex flex-wrap gap-2">
               {allRecipientNumbers.map((num) => {
                 const carrier = detectCarrier(num);
                 const isQueued = recipientsList.includes(num);
                 return (
                   <span
                     key={num}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-xs font-mono font-medium ${carrier.bg} ${carrier.color}`}
+                    className={`inline-flex items-center gap-2 rounded-xl border px-3 py-1.5 text-xs font-mono font-medium shadow-xs transition-all ${carrier.bg} ${carrier.color}`}
                   >
-                    <GhanaFlag className="h-2.5 w-4 rounded-xs" />
-                    <span className={`rounded px-1 text-[9px] font-bold ${carrier.badge}`}>
+                    <TelcoLogo carrier={carrier.name} className="h-4 w-4" />
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold font-sans tracking-wide ${carrier.badge}`}>
                       {carrier.name}
                     </span>
-                    <span>+{num.slice(0, 3)} {num.slice(3, 5)} {num.slice(5, 8)} {num.slice(8)}</span>
+                    <span className="font-semibold text-ink">
+                      +{num.slice(0, 3)} {num.slice(3, 5)} {num.slice(5, 8)} {num.slice(8)}
+                    </span>
                     {isQueued && (
                       <button
                         type="button"
                         onClick={() => removeRecipient(num)}
-                        className="ml-1 hover:opacity-75 text-xs font-bold"
+                        className="ml-1 rounded-full p-0.5 text-ink-soft hover:bg-black/10 hover:text-ink transition-colors font-sans text-xs font-bold"
                         title="Remove recipient"
                       >
                         ✕
@@ -383,6 +401,26 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
                   </span>
                 );
               })}
+            </div>
+          )}
+
+          {/* Specified Telcos Summary Breakdown */}
+          {allRecipientNumbers.length > 0 && carrierBreakdown.length > 0 && (
+            <div className="mt-2.5 flex items-center gap-3 flex-wrap rounded-xl bg-canvas/70 px-3.5 py-2 border border-ink/[0.06] text-xs text-ink-soft">
+              <span className="font-bold text-ink text-[11px] uppercase tracking-wider">
+                Specified Telcos ({allRecipientNumbers.length}):
+              </span>
+              {carrierBreakdown.map((item) => (
+                <span key={item.name} className="inline-flex items-center gap-1.5 font-semibold text-ink">
+                  <TelcoLogo carrier={item.name} className="h-3.5 w-3.5" />
+                  <span>
+                    {item.count} {item.name}
+                  </span>
+                  <span className="text-ink-faint text-[10px]">
+                    ({Math.round((item.count / allRecipientNumbers.length) * 100)}%)
+                  </span>
+                </span>
+              ))}
             </div>
           )}
         </div>

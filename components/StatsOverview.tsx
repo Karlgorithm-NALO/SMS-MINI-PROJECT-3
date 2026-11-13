@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CheckIcon, ClockIcon, MessageSquareIcon, XCircleIcon } from "./icons";
+import type { SmsRecord } from "@/lib/types";
+import { detectCarrier } from "@/lib/validate";
+import { AtLogo, CheckIcon, ClockIcon, MessageSquareIcon, MtnLogo, TelecelLogo, XCircleIcon } from "./icons";
 
 type Props = {
   refreshTrigger: number;
@@ -14,12 +16,23 @@ type Stats = {
   failed: number;
 };
 
+type TelcoCounts = {
+  mtn: number;
+  telecel: number;
+  at: number;
+};
+
 export default function StatsOverview({ refreshTrigger }: Props) {
   const [stats, setStats] = useState<Stats>({
     total: 0,
     delivered: 0,
     pending: 0,
     failed: 0,
+  });
+  const [telcos, setTelcos] = useState<TelcoCounts>({
+    mtn: 0,
+    telecel: 0,
+    at: 0,
   });
 
   useEffect(() => {
@@ -30,6 +43,18 @@ export default function StatsOverview({ refreshTrigger }: Props) {
           const data = await res.json();
           if (data.stats) {
             setStats(data.stats);
+          }
+          if (Array.isArray(data.messages)) {
+            let m = 0;
+            let t = 0;
+            let a = 0;
+            for (const msg of data.messages as SmsRecord[]) {
+              const c = detectCarrier(msg.recipient);
+              if (c.name === "MTN") m++;
+              else if (c.name === "Telecel") t++;
+              else if (c.name === "AT") a++;
+            }
+            setTelcos({ mtn: m, telecel: t, at: a });
           }
         }
       } catch {
@@ -116,6 +141,46 @@ export default function StatsOverview({ refreshTrigger }: Props) {
         </p>
         <p className="mt-1 text-[11px] text-ink-faint">Gateway error or expired</p>
       </div>
+
+      {/* 5. Network Operator Breakdown */}
+      {(telcos.mtn > 0 || telcos.telecel > 0 || telcos.at > 0) && (
+        <div className="col-span-2 sm:col-span-4 flex items-center justify-between flex-wrap gap-2.5 rounded-2xl border border-ink/[0.08] bg-surface p-3.5 sm:px-5 sm:py-3 shadow-card">
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-ink-soft">
+              Telco Traffic Breakdown:
+            </span>
+          </div>
+          <div className="flex items-center gap-4 flex-wrap text-xs">
+            <div className="flex items-center gap-1.5 font-semibold text-ink">
+              <MtnLogo className="h-4 w-4" />
+              <span>MTN: <strong className="font-mono text-ink">{telcos.mtn}</strong></span>
+              {stats.total > 0 && (
+                <span className="text-[10px] text-ink-faint">
+                  ({Math.round((telcos.mtn / stats.total) * 100)}%)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 font-semibold text-ink">
+              <TelecelLogo className="h-4 w-4" />
+              <span>Telecel: <strong className="font-mono text-ink">{telcos.telecel}</strong></span>
+              {stats.total > 0 && (
+                <span className="text-[10px] text-ink-faint">
+                  ({Math.round((telcos.telecel / stats.total) * 100)}%)
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-1.5 font-semibold text-ink">
+              <AtLogo className="h-4 w-4" />
+              <span>AT: <strong className="font-mono text-ink">{telcos.at}</strong></span>
+              {stats.total > 0 && (
+                <span className="text-[10px] text-ink-faint">
+                  ({Math.round((telcos.at / stats.total) * 100)}%)
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
