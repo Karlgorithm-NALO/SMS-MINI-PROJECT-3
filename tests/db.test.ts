@@ -46,6 +46,33 @@ test("updates delivery status when callback is received", async () => {
   assert.ok(found.delivered_at, "Should have delivered_at timestamp set");
 });
 
+test("updates delivery status by recipient fallback when gateway mid differs", async () => {
+  await saveSentMessage({
+    messageId: "INITIAL-SUBMIT-999",
+    senderId: "HappyTest",
+    recipient: "233550000111",
+    message: "Fallback test",
+    status: "SUBMITTED",
+    statusCode: "1701",
+  });
+
+  // Callback arrives with a different internal Nalo mid (e.g. api.0319834...)
+  const updated = await updateMessageDelivery({
+    messageId: "INTERNAL-GATEWAY-MID-888",
+    status: "DELIVRD",
+    statusCode: "000",
+    recipient: "233550000111",
+    rawPayload: JSON.stringify({ mid: "INTERNAL-GATEWAY-MID-888", msisdn: "233550000111" }),
+  });
+
+  assert.equal(updated, true);
+
+  const list = await getAllMessages(10);
+  const found = list.find((m) => m.message_id === "INITIAL-SUBMIT-999");
+  assert.ok(found);
+  assert.equal(found.status, "DELIVRD");
+});
+
 test("computes message delivery statistics correctly", async () => {
   const stats = await getMessageStats();
   assert.ok(stats.total >= 1);

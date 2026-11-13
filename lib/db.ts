@@ -269,7 +269,7 @@ export async function updateMessageDelivery(data: {
       ]
     );
 
-    const updateRes = await pool.query(
+    let updateRes = await pool.query(
       `UPDATE messages
        SET status = $1,
            status_code = COALESCE($2, status_code),
@@ -284,6 +284,32 @@ export async function updateMessageDelivery(data: {
         data.messageId,
       ]
     );
+
+    // Robust Fallback: If no row matched by exact message_id (e.g. Nalo returned internal 'mid'),
+    // match the latest pending message sent to the same recipient phone number
+    if ((updateRes.rowCount ?? 0) === 0 && data.recipient) {
+      updateRes = await pool.query(
+        `UPDATE messages
+         SET status = $1,
+             status_code = COALESCE($2, status_code),
+             delivered_at = $3,
+             raw_callback = $4
+         WHERE id = (
+           SELECT id FROM messages
+           WHERE (recipient = $5 OR recipient LIKE '%' || $5)
+             AND status IN ('SUBMITTED', 'SENT', 'PENDING')
+           ORDER BY id DESC
+           LIMIT 1
+         )`,
+        [
+          normalizedStatus,
+          data.statusCode ?? null,
+          receivedAt,
+          data.rawPayload ?? null,
+          data.recipient,
+        ]
+      );
+    }
 
     return (updateRes.rowCount ?? 0) > 0;
   }
@@ -317,13 +343,39 @@ export async function updateMessageDelivery(data: {
     WHERE message_id = ?
   `);
 
-  const result = update.run(
+  let result = update.run(
     normalizedStatus,
     data.statusCode ?? null,
     receivedAt,
     data.rawPayload ?? null,
     data.messageId
   );
+
+  // Robust Fallback: Match latest pending message to recipient if ID differed
+  if (Number(result.changes) === 0 && data.recipient) {
+    const fallbackUpdate = db.prepare(`
+      UPDATE messages
+      SET status = ?,
+          status_code = COALESCE(?, status_code),
+          delivered_at = ?,
+          raw_callback = ?
+      WHERE id = (
+        SELECT id FROM messages
+        WHERE (recipient = ? OR recipient LIKE '%' || ?)
+          AND status IN ('SUBMITTED', 'SENT', 'PENDING')
+        ORDER BY id DESC
+        LIMIT 1
+      )
+    `);
+    result = fallbackUpdate.run(
+      normalizedStatus,
+      data.statusCode ?? null,
+      receivedAt,
+      data.rawPayload ?? null,
+      data.recipient,
+      data.recipient
+    );
+  }
 
   return Number(result.changes) > 0;
 }

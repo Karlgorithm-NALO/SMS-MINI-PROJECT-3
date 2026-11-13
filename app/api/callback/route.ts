@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 async function processCallbackPayload(data: Record<string, unknown>, rawText: string) {
   console.log("[INCOMING DLR CALLBACK RECEIVED]:", JSON.stringify(data), "raw:", rawText);
 
-  // Support both snake_case, camelCase, and alternate parameter names
+  // Support both snake_case, camelCase, and alternate parameter names (e.g. mid, msisdn)
   let messageId = String(
     data.message_id ||
       data.messageId ||
@@ -43,25 +43,41 @@ async function processCallbackPayload(data: Record<string, unknown>, rawText: st
     }
   }
 
+  // Handle gateway error callbacks like "1707:Invalid Source(Sender)"
+  if (rawText.includes("1707")) {
+    status = "FAILED";
+  }
+
   if (!status) status = "DELIVRD";
 
   const statusCode =
     data.status_code || data.statusCode
       ? String(data.status_code || data.statusCode)
-      : undefined;
+      : rawText.includes("1707")
+        ? "1707"
+        : undefined;
+
   const description = data.description
     ? String(data.description)
-    : undefined;
+    : rawText.includes("1707")
+      ? "Invalid Source / Sender ID not approved on account"
+      : undefined;
+
   const recipient =
     data.to || data.destination || data.recipient || data.msisdn || data.phone
       ? String(data.to || data.destination || data.recipient || data.msisdn || data.phone)
       : undefined;
 
-  if (!messageId) {
-    console.warn("[CALLBACK WARNING]: Missing message_id in callback payload:", rawText);
+  // Fallback ID if message_id was omitted but recipient was provided
+  if (!messageId && recipient) {
+    messageId = `DLR-${Date.now()}`;
+  }
+
+  if (!messageId && !recipient) {
+    console.warn("[CALLBACK WARNING]: Missing both message_id and recipient in callback:", rawText);
     return {
       success: false,
-      error: "Missing message_id in callback payload",
+      error: "Missing message_id and recipient in callback payload",
     };
   }
 
@@ -83,16 +99,23 @@ export async function POST(req: NextRequest) {
     const rawText = await req.text();
     let data: Record<string, unknown> = {};
 
+    // 1. Merge any query parameters from URL
+    req.nextUrl.searchParams.forEach((val, key) => {
+      data[key] = val;
+    });
+
+    // 2. Parse body (JSON or Form URL Encoded)
     try {
-      data = JSON.parse(rawText);
+      const parsed = JSON.parse(rawText);
+      if (typeof parsed === "object" && parsed !== null) {
+        data = { ...data, ...parsed };
+      }
     } catch {
       // If sent as form-urlencoded
       const params = new URLSearchParams(rawText);
-      const obj: Record<string, unknown> = {};
       params.forEach((val, key) => {
-        obj[key] = val;
+        data[key] = val;
       });
-      data = obj;
     }
 
     const result = await processCallbackPayload(data, rawText);
@@ -105,9 +128,8 @@ export async function POST(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
     const data: Record<string, unknown> = {};
-    searchParams.forEach((val, key) => {
+    req.nextUrl.searchParams.forEach((val, key) => {
       data[key] = val;
     });
 

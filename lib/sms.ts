@@ -111,11 +111,14 @@ export async function sendNaloSms(params: {
       url.searchParams.set("source", params.senderId.trim());
       url.searchParams.set("message", params.message);
 
-      if (callbackUrl) {
-        url.searchParams.set("callback_url", callbackUrl);
+      let activeCallbackUrl = callbackUrl;
+      if (activeCallbackUrl) {
+        const separator = activeCallbackUrl.includes("?") ? "&" : "?";
+        activeCallbackUrl = `${activeCallbackUrl}${separator}to=${encodeURIComponent(recipient)}&source=${encodeURIComponent(params.senderId.trim())}`;
+        url.searchParams.set("callback_url", activeCallbackUrl);
       }
 
-      console.log(`[DISPATCHING SMS via NALO]: destination=${recipient}, source=${params.senderId.trim()}, callback_url=${callbackUrl || "none"}`);
+      console.log(`[DISPATCHING SMS via NALO]: destination=${recipient}, source=${params.senderId.trim()}, callback_url=${activeCallbackUrl || "none"}`);
 
       const response = await fetch(url.toString(), {
         method: "GET",
