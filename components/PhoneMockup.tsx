@@ -31,47 +31,6 @@ export default function PhoneMockup({
 
   return (
     <div className="flex flex-col items-center select-none w-full max-w-[380px]">
-      {/* Top Device Header Label & View Toggle */}
-      <div className="w-full flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-ink/[0.05] border border-ink/[0.08] px-2.5 py-0.5 text-[11px] font-bold text-ink">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent animate-pulse" />
-            iPhone 18 Pro Max
-          </span>
-          <span className="text-[10px] font-medium text-ink-faint hidden sm:inline">
-            6.9″ Super Retina XDR
-          </span>
-        </div>
-
-        {/* Bubble View Switcher */}
-        <div className="flex items-center rounded-lg bg-canvas p-0.5 border border-ink/[0.08] text-[10px] font-semibold">
-          <button
-            type="button"
-            onClick={() => setViewMode("incoming")}
-            className={`rounded-md px-2 py-0.5 transition-all ${
-              viewMode === "incoming"
-                ? "bg-white text-ink shadow-xs font-bold"
-                : "text-ink-soft hover:text-ink"
-            }`}
-            title="Preview how your customer sees the incoming SMS"
-          >
-            Customer View
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("outgoing")}
-            className={`rounded-md px-2 py-0.5 transition-all ${
-              viewMode === "outgoing"
-                ? "bg-white text-ink shadow-xs font-bold"
-                : "text-ink-soft hover:text-ink"
-            }`}
-            title="Preview standard iOS green outgoing bubble"
-          >
-            Outgoing
-          </button>
-        </div>
-      </div>
-
       {/* Realistic iPhone 18 Pro Max Frame with Titanium Rim & Hardware Buttons */}
       <div className="relative">
         {/* Left Hardware Buttons */}
@@ -233,11 +192,13 @@ export default function PhoneMockup({
                 >
                   {/* Bubble Container */}
                   <div
-                    className={`relative p-3.5 shadow-xs text-[13px] leading-[1.38] break-words whitespace-pre-wrap transition-all ${
+                    onClick={() => setViewMode((v) => (v === "incoming" ? "outgoing" : "incoming"))}
+                    className={`relative p-3.5 shadow-xs text-[13px] leading-[1.38] break-words whitespace-pre-wrap transition-all cursor-pointer active:scale-[0.99] ${
                       viewMode === "outgoing"
                         ? "rounded-[20px] rounded-br-[5px] bg-[#34C759] text-white font-normal"
                         : "rounded-[20px] rounded-bl-[5px] bg-[#E9E9EB] text-[#000000] font-normal"
                     }`}
+                    title="Tap bubble to switch between Customer (Gray) & Outgoing (Green) view"
                   >
                     {message.trim() ? (
                       message
