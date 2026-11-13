@@ -1,0 +1,50 @@
+# dependencies
+/node_modules
+
+# next.js build
+/.next/
+/out/
+/build
+
+# environment files - NEVER COMMIT SECRETS
+.env
+.env*.local
+.env.production
+.env.development
+!.env.example
+
+# databases and data storage
+/data/*.db
+/data/*.db-wal
+/data/*.db-shm
+/data/*.sqlite*
+/data/*.tmp
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+
+# python & misc build caches
+__pycache__/
+*.pyc
+
+# editor and OS files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+.claude/
+*.pem
+
+# debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+
+# vercel
+.vercel
