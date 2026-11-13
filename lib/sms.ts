@@ -138,7 +138,7 @@ export async function sendNaloSms(params: {
         if (!primaryMessageId) primaryMessageId = messageId;
         overallSuccess = true;
 
-        saveSentMessage({
+        await saveSentMessage({
           messageId,
           senderId: params.senderId.trim(),
           recipient,
@@ -159,7 +159,7 @@ export async function sendNaloSms(params: {
           NALO_ERROR_MAP[statusCode] || `Gateway error code ${statusCode}: ${responseText}`;
 
         const fallbackMsgId = `ERR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        saveSentMessage({
+        await saveSentMessage({
           messageId: fallbackMsgId,
           senderId: params.senderId.trim(),
           recipient,
@@ -181,7 +181,7 @@ export async function sendNaloSms(params: {
       const errorMsg = err instanceof Error ? err.message : "Network/dispatch error";
       const fallbackMsgId = `FAIL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
 
-      saveSentMessage({
+      await saveSentMessage({
         messageId: fallbackMsgId,
         senderId: params.senderId.trim(),
         recipient,

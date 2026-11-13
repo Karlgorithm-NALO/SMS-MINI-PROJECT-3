@@ -8,13 +8,14 @@ _by Karlson_
 
 **Real-time SMS dispatch and delivery tracking via the Nalo Solutions SMS API.**
 
-[Run with Docker](#how-to-run-with-docker) · [Environment Variables](#environment-variables) · [Local Callback Testing](#testing-callbacks-locally) · [API Endpoints](#api-endpoints)
+[Run with Docker](#how-to-run-with-docker) · [Environment Variables](#environment-variables) · [Database Persistence](#database--history-persistence) · [Local Callback Testing](#testing-callbacks-locally) · [API Endpoints](#api-endpoints)
 
 ![Next.js 14](https://img.shields.io/badge/Next.js-14-0F1B33?logo=nextdotjs&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-0F1B33?logo=typescript&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-336791?logo=postgresql&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3-0F1B33?logo=tailwindcss&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-ready-2496ED?logo=docker&logoColor=white)
-![Tests Passing](https://img.shields.io/badge/tests-13_passing-22A05B)
+![Tests Passing](https://img.shields.io/badge/tests-16_passing-22A05B)
 
 </div>
 
@@ -24,7 +25,7 @@ _by Karlson_
 
 A modern web platform that sends real SMS through the **Nalo Solutions SMS Gateway** and tracks live delivery reports (DLR) as callbacks return.
 
-Built with Next.js 14 (App Router, TypeScript), Tailwind CSS, and persistent SQLite storage. Containerized with Docker and Docker Compose for zero-friction deployment.
+Built with Next.js 14 (App Router, TypeScript), Tailwind CSS, and robust persistent storage (**PostgreSQL with dedicated Docker volume** and fallback SQLite support). Containerized with Docker and Docker Compose for zero-friction single-command deployment.
 
 ## Features
 
@@ -43,6 +44,9 @@ Built with Next.js 14 (App Router, TypeScript), Tailwind CSS, and persistent SQL
 - **Live Message History & Status Polling:**
   - Table auto-refreshes every 3.5 seconds without manual page reload.
   - Status badges, search/filter controls, and deep inspection drawer to inspect raw callback JSON payloads.
+- **Persistent Database & History Guarantee:**
+  - Powered by **PostgreSQL** in Docker with a dedicated named volume (`postgres_data`), ensuring message history and delivery reports survive container restarts, rebuilds, and deployments.
+  - Automatic fallback to SQLite (`data/messages.db`) for lightweight local testing or offline environments.
 - **Zero-Secret Security:**
   - Gateway API keys are loaded strictly on the server from environment variables and never exposed to the client.
 
@@ -51,9 +55,9 @@ Built with Next.js 14 (App Router, TypeScript), Tailwind CSS, and persistent SQL
 ## Tech Stack
 
 - **Framework:** Next.js 14 (App Router, TypeScript)
-- **Styling:** Tailwind CSS with brand design system
-- **Database:** Persistent SQLite (`node:sqlite`) in Docker volume mount (`./data`)
-- **Containerization:** Docker & Docker Compose (`node:22-alpine`)
+- **Styling:** Tailwind CSS with custom brand design system
+- **Database:** PostgreSQL 16 (in Docker Compose via `postgres_data` volume) + fallback SQLite (`node:sqlite`)
+- **Containerization:** Docker & Docker Compose (`node:22-bookworm-slim` + `postgres:16-alpine`)
 - **Tunnels:** Native Cloudflare Tunnel (`cloudflared`) and ngrok support
 
 ---
@@ -71,8 +75,9 @@ cp .env.example .env
 | Variable | Required | Description | Example |
 | :--- | :--- | :--- | :--- |
 | `SMS_API_KEY` | **Yes** | Your private Nalo SMS API key. Never shared with the client. | `your_nalo_api_key` |
-| `SENDER_IDS` | **Yes** | Comma-separated list of approved Sender IDs registered on your Nalo account (max 11 chars each). | `NALO,MYBRAND,INFO` |
+| `SENDER_IDS` | **Yes** | Comma-separated list of approved Sender IDs registered on your Nalo account (max 11 chars each). | `HappyTest,MYBRAND` |
 | `CALLBACK_BASE_URL` | Optional | Public HTTPS base URL where Nalo pushes delivery callbacks. Set to your tunnel or deployed domain. | `https://xxxx.trycloudflare.com` |
+| `DATABASE_URL` | Optional | PostgreSQL connection string. Provided automatically by Docker Compose (`postgresql://nalo:nalosecretpassword@db:5432/nalosms`). In production, use your cloud Postgres URL. | `postgresql://user:pass@host:5432/db` |
 | `PORT` | Optional | Port to expose the web server on (defaults to `3000`). | `3000` |
 
 ---
@@ -96,7 +101,22 @@ docker compose up --build
 
 The app will be accessible at: **`http://localhost:3000`**
 
-Sent messages and delivery callbacks are stored in `./data/messages.db`, which persists across container restarts via Docker volumes.
+Docker Compose automatically launches:
+1. `db`: PostgreSQL 16 server with persistent Docker volume (`postgres_data`).
+2. `app`: Next.js web application connected to the database.
+
+---
+
+## Database & History Persistence
+
+To guarantee you **never lose message history or delivery reports**:
+1. **In Docker (Local & Production):**
+   - A dedicated Docker volume `postgres_data` stores PostgreSQL data files independently of application containers.
+   - Even if you stop (`docker compose down`), rebuild (`--build`), or upgrade containers, your messages and delivery reports remain completely intact.
+2. **Cloud Deployments (Render / Railway / Supabase / Neon):**
+   - Connect any managed PostgreSQL database by setting `DATABASE_URL` in your platform's dashboard.
+3. **Local Standalone Dev / Testing:**
+   - If `DATABASE_URL` is omitted, the app falls back to SQLite (`data/messages.db`) automatically.
 
 ---
 
@@ -142,10 +162,10 @@ Copy the generated `https://xxxx.ngrok-free.app` URL to `CALLBACK_BASE_URL` in y
 ## API Endpoints
 
 - **`POST /api/send`**: Dispatches SMS to one or more numbers via Nalo gateway.
-  - Body: `{ "numbers": "233241234567, 233501234567", "senderId": "NALO", "message": "Hello!" }`
-- **`POST /api/callback`**: Webhook endpoint that receives DLR delivery report JSON from Nalo.
+  - Body: `{ "numbers": "233241234567, 233501234567", "senderId": "HappyTest", "message": "Hello!" }`
+- **`POST /api/callback`**: Webhook endpoint that receives DLR delivery report JSON or form data from Nalo.
 - **`GET /api/messages`**: Returns latest sent messages and delivery stats for polling.
-- **`GET /api/config`**: Returns configured sender IDs and webhook status.
+- **`GET /api/config`**: Returns configured sender IDs, active database engine, and webhook status.
 
 ---
 
@@ -157,26 +177,13 @@ Run the test suite:
 npm test
 ```
 
-Verifies:
+16 unit tests verify:
+- Database CRUD and status updates (PostgreSQL / SQLite compatibility)
 - International Ghanaian number format validation (`233XXXXXXXXX`)
 - Rejection of numbers starting with `0` with helpful instructions
 - Comma-separated multi-recipient parsing
 - GSM 7-bit vs Unicode UCS-2 character and segment counts
 - Pre-flight form validation rules (empty message, missing sender ID, invalid numbers)
-
----
-
-## Production Deployment
-
-This app can be deployed to any Docker-compatible platform:
-
-1. **Render / Railway / Fly.io / VPS:**
-   - Set environment variables in the host dashboard:
-     - `SMS_API_KEY`: your secret API key
-     - `SENDER_IDS`: approved sender IDs
-     - `CALLBACK_BASE_URL`: your public production URL (e.g. `https://your-app.onrender.com`)
-   - Mount persistent volume to `/app/data` (or connect external database).
-2. Ensure `CALLBACK_BASE_URL` matches your deployed HTTPS domain so delivery callbacks arrive properly.
 
 ---
 

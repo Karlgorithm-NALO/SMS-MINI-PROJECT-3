@@ -1,4 +1,5 @@
 import SmsDashboard from "@/components/SmsDashboard";
+import { getDatabaseEngine } from "@/lib/db";
 import { getAllowedSenderIds, getCallbackUrl } from "@/lib/sms";
 import type { AppConfig } from "@/lib/types";
 
@@ -16,6 +17,7 @@ export default function Home() {
     callbackEndpoint: callbackUrl || "/api/callback",
     hasApiKey: Boolean(apiKey),
     apiKeyPreview: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : undefined,
+    databaseEngine: getDatabaseEngine(),
   };
 
   return <SmsDashboard config={config} />;

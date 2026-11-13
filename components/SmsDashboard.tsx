@@ -110,7 +110,7 @@ export default function SmsDashboard({ config }: Props) {
           </div>
 
           <p className="sm:text-right">
-            Connected to Nalo SMS Gateway · Persistent SQLite database: <code className="font-mono text-ink">data/messages.db</code>
+            Connected to Nalo SMS Gateway · Database: <code className="font-mono text-ink font-semibold">{config.databaseEngine === "PostgreSQL" ? "PostgreSQL (Persistent Docker Volume)" : "SQLite (data/messages.db)"}</code>
           </p>
         </div>
 

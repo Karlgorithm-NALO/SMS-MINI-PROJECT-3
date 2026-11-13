@@ -1,5 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  optimizeFonts: false,
   experimental: {
     // The wallet file is read with fs at request time rather than imported,
     // so tell the file tracer to ship it with the functions that read it.

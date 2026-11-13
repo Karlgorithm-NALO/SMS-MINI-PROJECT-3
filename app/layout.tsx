@@ -1,20 +1,7 @@
 import { GeistMono } from "geist/font/mono";
 import { GeistSans } from "geist/font/sans";
 import type { Metadata, Viewport } from "next";
-import { Bricolage_Grotesque, Great_Vibes } from "next/font/google";
 import "./globals.css";
-
-const bricolage = Bricolage_Grotesque({
-  subsets: ["latin"],
-  weight: ["500", "600", "700", "800"],
-  variable: "--font-bricolage",
-});
-
-const signature = Great_Vibes({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-signature",
-});
 
 export const metadata: Metadata = {
   title: "Nalo SMS Platform by Karlson · Real SMS & Delivery Reports",
@@ -48,9 +35,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${GeistSans.variable} ${GeistMono.variable} ${bricolage.variable} ${signature.variable}`}
+      className={`${GeistSans.variable} ${GeistMono.variable}`}
     >
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;600;700;800&family=Great+Vibes&display=swap"
+          rel="stylesheet"
+        />
         <script dangerouslySetInnerHTML={{ __html: INTRO_GATE }} />
       </head>
       <body>{children}</body>

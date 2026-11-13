@@ -1,3 +1,4 @@
+import { getDatabaseEngine } from "@/lib/db";
 import { getAllowedSenderIds, getCallbackUrl } from "@/lib/sms";
 import { NextResponse } from "next/server";
 
@@ -15,5 +16,6 @@ export async function GET() {
     callbackEndpoint: callbackUrl || "/api/callback",
     hasApiKey: Boolean(apiKey),
     apiKeyPreview: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null,
+    databaseEngine: getDatabaseEngine(),
   });
 }

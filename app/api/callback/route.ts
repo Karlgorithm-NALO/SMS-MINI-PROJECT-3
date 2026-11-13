@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-function processCallbackPayload(data: Record<string, unknown>, rawText: string) {
+async function processCallbackPayload(data: Record<string, unknown>, rawText: string) {
   console.log("[INCOMING DLR CALLBACK RECEIVED]:", JSON.stringify(data), "raw:", rawText);
 
   // Support both snake_case, camelCase, and alternate parameter names
@@ -65,7 +65,7 @@ function processCallbackPayload(data: Record<string, unknown>, rawText: string) 
     };
   }
 
-  const updated = updateMessageDelivery({
+  const updated = await updateMessageDelivery({
     messageId,
     status,
     statusCode,
@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
       data = obj;
     }
 
-    const result = processCallbackPayload(data, rawText);
+    const result = await processCallbackPayload(data, rawText);
     return NextResponse.json(result, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error handling callback";
@@ -111,7 +111,7 @@ export async function GET(req: NextRequest) {
       data[key] = val;
     });
 
-    const result = processCallbackPayload(data, req.url);
+    const result = await processCallbackPayload(data, req.url);
     return NextResponse.json(result, { status: 200 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : "Error handling callback";

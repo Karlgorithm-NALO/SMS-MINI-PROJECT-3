@@ -1,4 +1,23 @@
 services:
+  # Dedicated PostgreSQL database with persistent volume
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-nalo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-nalosecretpassword}
+      POSTGRES_DB: ${POSTGRES_DB:-nalosms}
+    volumes:
+      # Persistent Docker volume ensuring message history and delivery reports survive container restarts
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nalo} -d ${POSTGRES_DB:-nalosms}"]
+      interval: 3s
+      timeout: 3s
+      retries: 5
+    networks:
+      - sms-network
+
   app:
     build:
       context: .
@@ -6,13 +25,16 @@ services:
     ports:
       - "${PORT:-3000}:3000"
     environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER:-nalo}:${POSTGRES_PASSWORD:-nalosecretpassword}@db:5432/${POSTGRES_DB:-nalosms}
       - SMS_API_KEY=${SMS_API_KEY}
       - SENDER_IDS=${SENDER_IDS}
       - CALLBACK_BASE_URL=${CALLBACK_BASE_URL}
       - PORT=3000
       - HOSTNAME=0.0.0.0
+    depends_on:
+      db:
+        condition: service_healthy
     volumes:
-      # Persistent volume ensuring messages and delivery reports survive restarts
       - ./data:/app/data
     networks:
       - sms-network
@@ -34,3 +56,6 @@ services:
 networks:
   sms-network:
     driver: bridge
+
+volumes:
+  postgres_data:

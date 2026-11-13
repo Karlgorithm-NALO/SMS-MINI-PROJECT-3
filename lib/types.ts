@@ -63,6 +63,7 @@ export type AppConfig = {
   callbackEndpoint: string;
   hasApiKey: boolean;
   apiKeyPreview?: string;
+  databaseEngine?: string;
 };
 
 // Legacy SikaLedger types

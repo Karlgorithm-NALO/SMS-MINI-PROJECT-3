@@ -6,8 +6,8 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
-    const messages = getAllMessages(100);
-    const stats = getMessageStats();
+    const messages = await getAllMessages(100);
+    const stats = await getMessageStats();
 
     return NextResponse.json({
       success: true,
