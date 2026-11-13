@@ -5,20 +5,60 @@ export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 function processCallbackPayload(data: Record<string, unknown>, rawText: string) {
-  // Support both snake_case and camelCase
-  const messageId = String(
-    data.message_id || data.messageId || data.msg_id || data.id || ""
+  console.log("[INCOMING DLR CALLBACK RECEIVED]:", JSON.stringify(data), "raw:", rawText);
+
+  // Support both snake_case, camelCase, and alternate parameter names
+  let messageId = String(
+    data.message_id ||
+      data.messageId ||
+      data.msg_id ||
+      data.msgid ||
+      data.mid ||
+      data.id ||
+      data.messageID ||
+      data.batch_id ||
+      ""
   ).trim();
 
-  const status = String(
-    data.status || data.delivery_status || data.deliveryStatus || "DELIVRD"
+  let status = String(
+    data.status ||
+      data.delivery_status ||
+      data.deliveryStatus ||
+      data.dlr_status ||
+      data.dlrStatus ||
+      data.state ||
+      data.report ||
+      ""
   ).trim();
 
-  const statusCode = data.status_code || data.statusCode ? String(data.status_code || data.statusCode) : undefined;
-  const description = data.description ? String(data.description) : undefined;
-  const recipient = data.to || data.destination || data.recipient ? String(data.to || data.destination || data.recipient) : undefined;
+  // If plain text pipe-separated e.g. 1701|phone|message_id
+  if (!messageId && rawText.includes("|")) {
+    const parts = rawText.trim().split("|").map((p) => p.trim());
+    if (parts.length >= 3) {
+      messageId = parts[2];
+      status = parts[0] === "1701" ? "DELIVRD" : parts[0];
+    } else if (parts.length === 2) {
+      messageId = parts[1];
+      status = "DELIVRD";
+    }
+  }
+
+  if (!status) status = "DELIVRD";
+
+  const statusCode =
+    data.status_code || data.statusCode
+      ? String(data.status_code || data.statusCode)
+      : undefined;
+  const description = data.description
+    ? String(data.description)
+    : undefined;
+  const recipient =
+    data.to || data.destination || data.recipient || data.msisdn || data.phone
+      ? String(data.to || data.destination || data.recipient || data.msisdn || data.phone)
+      : undefined;
 
   if (!messageId) {
+    console.warn("[CALLBACK WARNING]: Missing message_id in callback payload:", rawText);
     return {
       success: false,
       error: "Missing message_id in callback payload",
@@ -34,6 +74,7 @@ function processCallbackPayload(data: Record<string, unknown>, rawText: string) 
     rawPayload: rawText,
   });
 
+  console.log(`[CALLBACK UPDATED]: Message ${messageId} -> ${status} (updated: ${updated})`);
   return { success: true, updated, messageId, status };
 }
 

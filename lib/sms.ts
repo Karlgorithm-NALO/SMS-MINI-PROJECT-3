@@ -115,6 +115,8 @@ export async function sendNaloSms(params: {
         url.searchParams.set("callback_url", callbackUrl);
       }
 
+      console.log(`[DISPATCHING SMS via NALO]: destination=${recipient}, source=${params.senderId.trim()}, callback_url=${callbackUrl || "none"}`);
+
       const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
