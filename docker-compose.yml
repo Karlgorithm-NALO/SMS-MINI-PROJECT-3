@@ -3,7 +3,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: nalo-sms-app
     ports:
       - "${PORT:-3000}:3000"
     environment:
@@ -15,6 +14,8 @@ services:
     volumes:
       # Persistent volume ensuring messages and delivery reports survive restarts
       - ./data:/app/data
+    networks:
+      - sms-network
     restart: unless-stopped
 
   # Optional Cloudflare Quick Tunnel for local testing without card/account
@@ -24,5 +25,12 @@ services:
     command: tunnel --no-autoupdate --url http://app:3000
     depends_on:
       - app
+    networks:
+      - sms-network
+    restart: unless-stopped
     profiles:
       - tunnel
+
+networks:
+  sms-network:
+    driver: bridge
