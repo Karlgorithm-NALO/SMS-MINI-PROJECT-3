@@ -1,27 +1,24 @@
-FROM node:22-alpine
+FROM node:22-bookworm-slim
 
 WORKDIR /app
-
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Install libc6-compat for Alpine Linux compatibility
-RUN apk add --no-cache libc6-compat
 
 # Copy dependency manifests
 COPY package.json package-lock.json ./
 
-# Install dependencies
+# Install dependencies (including devDependencies required for build: tailwind, typescript)
 RUN npm ci
 
-# Copy project files
+# Copy application source code (excluding node_modules, .next, .env via .dockerignore)
 COPY . .
 
 # Build Next.js application
 RUN npm run build
 
-# Ensure persistent data directory exists
+# Ensure persistent data directory exists for SQLite
 RUN mkdir -p /app/data
+
+ENV NODE_ENV=production
+ENV PORT=3000
 
 EXPOSE 3000
 
