@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "lint": "next lint",
-    "test": "node --import tsx --test tests/sms.test.ts tests/db.test.ts tests/validate.test.ts"
+    "test": "node --import tsx --test tests/sms.test.ts tests/db.test.ts tests/validate.test.ts",
+    "keepalive": "node scripts/keepalive.js",
+    "keepalive:once": "node scripts/keepalive.js --once"
   },
   "dependencies": {
     "geist": "1.7.2",

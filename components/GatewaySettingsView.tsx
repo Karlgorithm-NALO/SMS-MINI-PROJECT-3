@@ -1,14 +1,32 @@
 "use client";
 
+import { useState } from "react";
 import type { AppConfig } from "@/lib/types";
 import CallbackInfo from "./CallbackInfo";
-import { SignalIcon } from "./icons";
+import { CheckIcon, ClockIcon, SignalIcon, SpinnerIcon } from "./icons";
 
 type Props = {
   config: AppConfig;
 };
 
 export default function GatewaySettingsView({ config }: Props) {
+  const [isPinging, setIsPinging] = useState(false);
+  const [pingResult, setPingResult] = useState<{ status: number; latency: number } | null>(null);
+
+  async function handleTestPing() {
+    setIsPinging(true);
+    const start = Date.now();
+    try {
+      const res = await fetch("/api/health");
+      const latency = Date.now() - start;
+      setPingResult({ status: res.status, latency });
+    } catch {
+      setPingResult({ status: 500, latency: Date.now() - start });
+    } finally {
+      setIsPinging(false);
+    }
+  }
+
   return (
     <div className="space-y-6">
       {/* View Header */}
@@ -17,7 +35,7 @@ export default function GatewaySettingsView({ config }: Props) {
           Gateway & Webhook Settings
         </h2>
         <p className="mt-1 text-sm text-ink-soft">
-          Configure Nalo SMS API credentials, delivery callback webhooks, and approved Sender IDs.
+          Configure Nalo SMS API credentials, delivery callback webhooks, approved Sender IDs, and Render keep-alive uptime.
         </p>
       </div>
 
@@ -28,8 +46,9 @@ export default function GatewaySettingsView({ config }: Props) {
           hasApiKey={config.hasApiKey}
         />
 
-        {/* 2. Sender ID Configuration Card */}
+        {/* 2. Right Column Cards */}
         <div className="space-y-6">
+          {/* Sender ID Configuration Card */}
           <div className="rounded-[24px] border border-ink/[0.08] bg-surface p-6 shadow-card">
             <div className="flex items-center justify-between border-b border-ink/[0.06] pb-3">
               <h3 className="font-display text-base font-bold text-ink">
@@ -77,7 +96,91 @@ export default function GatewaySettingsView({ config }: Props) {
             </div>
           </div>
 
-          {/* 3. API Connection Details Card */}
+          {/* Render 24/7 Keep-Alive Uptime Daemon Card */}
+          <div className="rounded-[24px] border border-ink/[0.08] bg-surface p-6 shadow-card text-xs">
+            <div className="flex items-center justify-between border-b border-ink/[0.06] pb-3">
+              <div className="flex items-center gap-2">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                <h3 className="font-display text-base font-bold text-ink">
+                  Render Anti-Sleep Keep-Alive
+                </h3>
+              </div>
+              <span className="rounded-full bg-emerald-50 px-2.5 py-0.5 text-[10px] font-bold text-emerald-800 border border-emerald-200">
+                24/7 Active
+              </span>
+            </div>
+
+            <p className="mt-3 text-ink-soft leading-relaxed">
+              Render free Web Services sleep after 15 minutes of inactivity. The anti-sleep daemon pings the health endpoint every <strong>10 minutes</strong> to ensure 100% uptime with zero cold starts.
+            </p>
+
+            <div className="mt-4 space-y-3">
+              <div>
+                <span className="font-semibold text-ink-soft">Health Endpoint:</span>
+                <code className="mt-1 block font-mono text-[11px] text-ink bg-canvas p-2 rounded-lg border border-ink/[0.06] break-all">
+                  https://sms-mini-project-3.onrender.com/api/health
+                </code>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-ink-soft">Ping Frequency:</span>
+                <span className="font-mono font-bold text-ink bg-chip px-2.5 py-0.5 rounded-md">
+                  Every 10 minutes (&lt; 15m timeout)
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-ink-soft">Cloud Automation:</span>
+                <span className="font-semibold text-emerald-700">
+                  GitHub Actions (cron: */10 * * * *)
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="font-semibold text-ink-soft">Local Runner Command:</span>
+                <code className="font-mono text-[11px] text-ink bg-chip px-2 py-0.5 rounded">
+                  npm run keepalive
+                </code>
+              </div>
+
+              {/* Test Ping Button & Result */}
+              <div className="pt-2 border-t border-ink/[0.06] flex items-center justify-between">
+                <button
+                  type="button"
+                  onClick={handleTestPing}
+                  disabled={isPinging}
+                  className="inline-flex items-center gap-1.5 rounded-xl border border-ink/[0.12] bg-white px-3.5 py-1.5 font-bold text-ink hover:bg-chip active:scale-95 transition-all shadow-xs disabled:opacity-50"
+                >
+                  {isPinging ? (
+                    <>
+                      <SpinnerIcon className="h-3.5 w-3.5 animate-spin" />
+                      <span>Pinging...</span>
+                    </>
+                  ) : (
+                    <>
+                      <ClockIcon className="h-3.5 w-3.5 text-accent" />
+                      <span>Test Health Ping</span>
+                    </>
+                  )}
+                </button>
+
+                {pingResult && (
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-lg px-2.5 py-1 font-mono font-bold ${
+                      pingResult.status === 200
+                        ? "bg-emerald-50 text-emerald-800 border border-emerald-200"
+                        : "bg-danger-bg text-danger-fg"
+                    }`}
+                  >
+                    <CheckIcon className="h-3 w-3" />
+                    {pingResult.status} OK ({pingResult.latency}ms)
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* API Connection Details Card */}
           <div className="rounded-[24px] border border-ink/[0.08] bg-surface p-6 shadow-card text-xs">
             <h3 className="font-display text-base font-bold text-ink border-b border-ink/[0.06] pb-3">
               Nalo API Connection

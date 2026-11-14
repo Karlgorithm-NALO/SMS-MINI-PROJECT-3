@@ -1,0 +1,42 @@
+name: Render Anti-Sleep Keep-Alive
+
+on:
+  schedule:
+    # Ping every 10 minutes (Render free tier sleeps after 15 minutes of inactivity)
+    - cron: "*/10 * * * *"
+  workflow_dispatch: # Allows manual trigger from GitHub Actions tab
+
+jobs:
+  keepalive:
+    name: Ping Render Web Service
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Ping Health Endpoint
+        run: |
+          URL="https://sms-mini-project-3.onrender.com/api/health"
+          FALLBACK_URL="https://sms-mini-project-3.onrender.com/api/config"
+          
+          echo "================================================="
+          echo "Timestamp: $(date -u '+%Y-%m-%d %H:%M:%S UTC')"
+          echo "Target:    $URL"
+          echo "================================================="
+          
+          # Attempt ping to /api/health with timeout
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$URL" || echo "FAILED")
+          
+          if [ "$STATUS" = "404" ]; then
+            echo "Endpoint /api/health returned 404, falling back to $FALLBACK_URL"
+            STATUS=$(curl -s -o /dev/null -w "%{http_code}" --max-time 30 "$FALLBACK_URL" || echo "FAILED")
+          fi
+          
+          echo "HTTP Response Status: $STATUS"
+          
+          if [ "$STATUS" = "200" ] || [ "$STATUS" = "301" ] || [ "$STATUS" = "302" ]; then
+            echo "✔ SUCCESS: Render Web Service is awake and responding!"
+            exit 0
+          else
+            echo "✖ WARNING: Unexpected response code ($STATUS)."
+            exit 1
+          fi
