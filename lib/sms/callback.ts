@@ -48,11 +48,14 @@ type Found =
   | { reason: "none" | "ambiguous" };
 
 async function findMessage(ev: DlrEvent): Promise<Found> {
-  // 1) Exact ID match (initial job_id, message_id, or gateway alias)
+  // 1) Exact ID match or prefix match (Nalo appends .<hash> to job_id in DLR webhooks)
   if (ev.providerId) {
     const rows = await execQuery(
       `SELECT id, sent_at, recipient FROM messages
-       WHERE message_id = CAST($1 AS TEXT) OR gateway_message_id = CAST($1 AS TEXT)
+       WHERE message_id = CAST($1 AS TEXT)
+          OR gateway_message_id = CAST($1 AS TEXT)
+          OR CAST($1 AS TEXT) LIKE message_id || '.%'
+          OR message_id LIKE CAST($1 AS TEXT) || '.%'
        LIMIT 2`,
       [ev.providerId]
     );
