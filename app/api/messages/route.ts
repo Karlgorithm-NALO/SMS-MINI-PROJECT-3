@@ -9,7 +9,7 @@ export async function GET() {
     let messages = await getAllMessages(100);
 
     // If database has fewer messages than standard seed, backfill missing historical messages
-    if (messages.length < 18) {
+    if (messages.length < 35) {
       await seedInitialDataIfEmpty();
       messages = await getAllMessages(100);
     }
