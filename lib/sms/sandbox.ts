@@ -64,11 +64,11 @@ SET
   status_source = 'synthetic',
   status_code   = '201',
   error_message = 'Handset unreachable or number unallocated (simulated test number)',
-  failed_at     = $1
+  failed_at     = CAST($1 AS TEXT)
 WHERE is_sandbox = 1
   AND status IN ('SUBMITTED', 'PENDING')
   AND sandbox_resolve_at IS NOT NULL
-  AND sandbox_resolve_at <= $2
-  AND ($3 IS NULL OR message_id = $3 OR CAST(id AS TEXT) = $3)
+  AND sandbox_resolve_at <= CAST($2 AS BIGINT)
+  AND (CAST($3 AS TEXT) IS NULL OR message_id = CAST($3 AS TEXT) OR CAST(id AS TEXT) = CAST($3 AS TEXT))
 RETURNING id
 `;

@@ -15,9 +15,9 @@ async function retryParkedEvents(now: number): Promise<number> {
     `SELECT dedupe_key, payload, received_at
      FROM delivery_events
      WHERE (outcome IN ('unmatched', 'ambiguous')
-            OR (outcome IS NULL AND received_at < $1))
-       AND attempts < $2
-       AND received_at > $3
+            OR (outcome IS NULL AND received_at < CAST($1 AS BIGINT)))
+       AND attempts < CAST($2 AS INTEGER)
+       AND received_at > CAST($3 AS BIGINT)
      ORDER BY received_at ASC
      LIMIT 200`,
     [now - 30_000, PARKED_MAX_ATTEMPTS, now - PARKED_MAX_AGE_MS]
@@ -68,11 +68,11 @@ export async function reconcilePendingMessages(now = Date.now()): Promise<{
        status_source = 'ttl',
        status_code   = NULL,
        error_message = 'No delivery report received before validity period ended',
-       failed_at     = $1
+       failed_at     = CAST($1 AS TEXT)
      WHERE is_sandbox = 0
        AND status IN ('QUEUED', 'SUBMITTED', 'PENDING')
        AND expires_at IS NOT NULL
-       AND (expires_at + $2) <= $3
+       AND (expires_at + CAST($2 AS BIGINT)) <= CAST($3 AS BIGINT)
      RETURNING id`,
     [failedIso, EXPIRY_GRACE_MS, now]
   );
@@ -81,7 +81,7 @@ export async function reconcilePendingMessages(now = Date.now()): Promise<{
   // 4) Observability: Check messages stuck in QUEUED (indicates gateway failure)
   const stuck = await execQuery(
     `SELECT COUNT(*) AS count FROM messages
-     WHERE status = 'QUEUED' AND is_sandbox = 0 AND sent_at < $1`,
+     WHERE status = 'QUEUED' AND is_sandbox = 0 AND sent_at < CAST($1 AS TEXT)`,
     [new Date(now - 5 * 60_000).toISOString()]
   );
   const stuckQueued = Number(stuck[0]?.count ?? 0);

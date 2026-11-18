@@ -26,20 +26,20 @@
 export const APPLY_TRANSITION_SQL = `
 UPDATE messages
 SET
-  status              = $2,
-  status_source       = $3,
-  status_code         = COALESCE($4, status_code),
-  error_message       = CASE WHEN $2 = 'DELIVRD' THEN NULL ELSE COALESCE($5, error_message) END,
-  delivered_at        = CASE WHEN $2 = 'DELIVRD' THEN $6 ELSE NULL END,
-  failed_at           = CASE WHEN $2 = 'DELIVRD' THEN NULL ELSE $7 END,
-  delivery_latency_ms = CASE WHEN $2 = 'DELIVRD' THEN $8 ELSE NULL END,
-  raw_callback        = COALESCE($9, raw_callback),
-  gateway_message_id  = COALESCE(gateway_message_id, $10)
-WHERE id = $1
+  status              = CAST($2 AS TEXT),
+  status_source       = CAST($3 AS TEXT),
+  status_code         = COALESCE(CAST($4 AS TEXT), status_code),
+  error_message       = CASE WHEN CAST($2 AS TEXT) = 'DELIVRD' THEN NULL ELSE COALESCE(CAST($5 AS TEXT), error_message) END,
+  delivered_at        = CASE WHEN CAST($2 AS TEXT) = 'DELIVRD' THEN CAST($6 AS TEXT) ELSE NULL END,
+  failed_at           = CASE WHEN CAST($2 AS TEXT) = 'DELIVRD' THEN NULL ELSE CAST($7 AS TEXT) END,
+  delivery_latency_ms = CASE WHEN CAST($2 AS TEXT) = 'DELIVRD' THEN CAST($8 AS BIGINT) ELSE NULL END,
+  raw_callback        = COALESCE(CAST($9 AS TEXT), raw_callback),
+  gateway_message_id  = COALESCE(gateway_message_id, CAST($10 AS TEXT))
+WHERE id = CAST($1 AS INTEGER)
   AND (
        status IN ('QUEUED', 'SUBMITTED', 'SENT', 'PENDING')
-    OR ($2 = 'DELIVRD' AND status <> 'DELIVRD')
-    OR ($2 <> 'DELIVRD'
+    OR (CAST($2 AS TEXT) = 'DELIVRD' AND status <> 'DELIVRD')
+    OR (CAST($2 AS TEXT) <> 'DELIVRD'
         AND status IN ('UNDELIV', 'EXPIRED', 'FAILED')
         AND status_source IN ('synthetic', 'ttl'))
   )
@@ -59,10 +59,10 @@ RETURNING id, status
 export const ACK_SQL = `
 UPDATE messages
 SET
-  message_id    = COALESCE($2, message_id),
-  raw_response  = COALESCE($3, raw_response),
+  message_id    = COALESCE(CAST($2 AS TEXT), message_id),
+  raw_response  = COALESCE(CAST($3 AS TEXT), raw_response),
   status        = CASE WHEN status = 'QUEUED' THEN 'SUBMITTED' ELSE status END,
   status_source = CASE WHEN status = 'QUEUED' THEN 'gateway' ELSE status_source END
-WHERE id = $1
+WHERE id = CAST($1 AS INTEGER)
 RETURNING id, status
 `;

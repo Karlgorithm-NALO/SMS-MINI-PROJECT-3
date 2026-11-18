@@ -52,7 +52,7 @@ async function findMessage(ev: DlrEvent): Promise<Found> {
   if (ev.providerId) {
     const rows = await execQuery(
       `SELECT id, sent_at, recipient FROM messages
-       WHERE message_id = $1 OR gateway_message_id = $1
+       WHERE message_id = CAST($1 AS TEXT) OR gateway_message_id = CAST($1 AS TEXT)
        LIMIT 2`,
       [ev.providerId]
     );
@@ -74,11 +74,11 @@ async function findMessage(ev: DlrEvent): Promise<Found> {
 
   const rows = await execQuery(
     `SELECT id, sent_at, recipient FROM messages
-     WHERE (recipient = $1 OR recipient LIKE '%' || $2)
+     WHERE (recipient = CAST($1 AS TEXT) OR recipient LIKE '%' || CAST($2 AS TEXT))
        AND is_sandbox = 0
        AND (status IN ('QUEUED', 'SUBMITTED', 'SENT', 'PENDING') OR (status = 'EXPIRED' AND status_source = 'ttl'))
-       AND sent_at <= $3
-       AND sent_at >= $4
+       AND sent_at <= CAST($3 AS TEXT)
+       AND sent_at >= CAST($4 AS TEXT)
      ORDER BY id DESC
      LIMIT 2`,
     [ev.recipient, last9, isoUpper, isoLower]
@@ -145,8 +145,8 @@ export async function applyEvent(
 
   await execQuery(
     `UPDATE delivery_events
-     SET outcome = $2, message_id = $3, attempts = attempts + 1, processed_at = $4
-     WHERE dedupe_key = $1`,
+     SET outcome = CAST($2 AS TEXT), message_id = CAST($3 AS TEXT), attempts = attempts + 1, processed_at = CAST($4 AS BIGINT)
+     WHERE dedupe_key = CAST($1 AS TEXT)`,
     [dedupeKey, result.outcome, result.messageId ?? null, Date.now()]
   );
 
@@ -169,7 +169,7 @@ export async function processCallback(payload: Record<string, unknown>): Promise
   const inserted = await execQuery(
     `INSERT INTO delivery_events
        (dedupe_key, provider_message_id, recipient, raw_status, status_code, payload, received_at, attempts)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, 0)
+     VALUES (CAST($1 AS TEXT), CAST($2 AS TEXT), CAST($3 AS TEXT), CAST($4 AS TEXT), CAST($5 AS TEXT), CAST($6 AS TEXT), CAST($7 AS BIGINT), 0)
      ON CONFLICT (dedupe_key) DO NOTHING
      RETURNING dedupe_key`,
     [
