@@ -413,7 +413,8 @@ export async function updateMessageDelivery(data: {
        SET status = $1,
            status_code = COALESCE($2, status_code),
            delivered_at = $3,
-           raw_callback = $4
+           raw_callback = $4,
+           error_message = COALESCE($6, error_message)
        WHERE message_id = $5`,
       [
         normalizedStatus,
@@ -421,6 +422,7 @@ export async function updateMessageDelivery(data: {
         deliveredAt,
         data.rawPayload ?? null,
         data.messageId,
+        data.description ?? (normalizedStatus === "FAILED" ? "Carrier Error 201: Message undelivered / expired" : null),
       ]
     );
 
@@ -435,7 +437,8 @@ export async function updateMessageDelivery(data: {
          SET status = $1,
              status_code = COALESCE($2, status_code),
              delivered_at = $3,
-             raw_callback = $4
+             raw_callback = $4,
+             error_message = COALESCE($6, error_message)
          WHERE id = (
            SELECT id FROM messages
            WHERE recipient LIKE '%' || $5
@@ -449,6 +452,7 @@ export async function updateMessageDelivery(data: {
           deliveredAt,
           data.rawPayload ?? null,
           searchPattern,
+          data.description ?? (normalizedStatus === "FAILED" ? "Carrier Error 201: Message undelivered / expired" : null),
         ]
       );
     }
@@ -481,7 +485,8 @@ export async function updateMessageDelivery(data: {
     SET status = ?,
         status_code = COALESCE(?, status_code),
         delivered_at = ?,
-        raw_callback = ?
+        raw_callback = ?,
+        error_message = COALESCE(?, error_message)
     WHERE message_id = ?
   `);
 
@@ -490,6 +495,7 @@ export async function updateMessageDelivery(data: {
     data.statusCode ?? null,
     deliveredAt,
     data.rawPayload ?? null,
+    data.description ?? (normalizedStatus === "FAILED" ? "Carrier Error 201: Message undelivered / expired" : null),
     data.messageId
   );
 
@@ -503,7 +509,8 @@ export async function updateMessageDelivery(data: {
       SET status = ?,
           status_code = COALESCE(?, status_code),
           delivered_at = ?,
-          raw_callback = ?
+          raw_callback = ?,
+          error_message = COALESCE(?, error_message)
       WHERE id = (
         SELECT id FROM messages
         WHERE recipient LIKE '%' || ?
@@ -517,6 +524,7 @@ export async function updateMessageDelivery(data: {
       data.statusCode ?? null,
       deliveredAt,
       data.rawPayload ?? null,
+      data.description ?? (normalizedStatus === "FAILED" ? "Carrier Error 201: Message undelivered / expired" : null),
       searchPattern
     );
   }
