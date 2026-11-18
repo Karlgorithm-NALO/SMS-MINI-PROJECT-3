@@ -53,10 +53,10 @@ async function processCallbackPayload(data: Record<string, unknown>, rawText: st
     const parts = rawText.trim().split("|").map((p) => p.trim());
     if (parts.length >= 3) {
       messageId = parts[2];
-      status = parts[0] === "1701" ? "DELIVRD" : parts[0];
+      status = parts[0] === "1701" ? "SUBMITTED" : parts[0];
     } else if (parts.length === 2) {
       messageId = parts[1];
-      status = "DELIVRD";
+      status = parts[0] === "1701" ? "SUBMITTED" : parts[0];
     }
   }
 
@@ -65,7 +65,15 @@ async function processCallbackPayload(data: Record<string, unknown>, rawText: st
     status = "FAILED";
   }
 
-  if (!status) status = "DELIVRD";
+  if (!status) {
+    if (rawText.toUpperCase().includes("DELIV")) {
+      status = "DELIVRD";
+    } else if (rawText.toUpperCase().includes("EXPIR") || rawText.toUpperCase().includes("UNDELIV") || rawText.toUpperCase().includes("REJECT")) {
+      status = "FAILED";
+    } else {
+      status = "UNKNOWN";
+    }
+  }
 
   const statusCode = lookup(["status_code", "statusCode", "code"]) || (rawText.includes("1707") ? "1707" : undefined);
   const description =

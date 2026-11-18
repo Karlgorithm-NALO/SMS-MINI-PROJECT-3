@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import type { SmsRecord } from "@/lib/types";
 import { detectCarrier, formatPhoneNumber } from "@/lib/validate";
 import {
@@ -412,186 +412,235 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                 const isExpanded = expandedId === msg.id;
 
                 return (
-                  <tr
-                    key={msg.id}
-                    className="group hover:bg-canvas/40 transition-colors"
-                  >
-                    <td className="py-2.5 pl-3 pr-2 whitespace-nowrap">
-                      {getStatusBadge(msg.status)}
-                    </td>
+                  <Fragment key={msg.id}>
+                    <tr
+                      className={`group transition-colors ${
+                        isExpanded
+                          ? "bg-accent/[0.04] border-l-2 border-l-accent"
+                          : "hover:bg-canvas/40"
+                      }`}
+                    >
+                      <td className="py-2.5 pl-3 pr-2 whitespace-nowrap">
+                        {getStatusBadge(msg.status)}
+                      </td>
 
-                    <td className="py-2.5 px-2.5 font-mono text-[11px] font-medium text-ink whitespace-nowrap">
-                      <div className="flex items-center gap-1">
-                        <span title={msg.message_id} className="max-w-[110px] truncate">
-                          {msg.message_id}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => copyText(msg.message_id)}
-                          className="opacity-0 group-hover:opacity-100 hover:text-accent transition-opacity p-0.5"
-                          title="Copy Message ID"
-                        >
-                          <CopyIcon className="h-3 w-3" />
-                        </button>
-                        {copiedId === msg.message_id && (
-                          <span className="text-[9px] text-accent font-sans font-bold">Copied</span>
-                        )}
-                      </div>
-                    </td>
-
-                    <td className="py-2.5 px-2.5 whitespace-nowrap">
-                      <span className="rounded-md bg-chip px-2 py-0.5 font-semibold text-ink-body text-[11px]">
-                        {msg.sender_id}
-                      </span>
-                    </td>
-
-                    <td className="py-2.5 px-2.5 font-mono text-[11px] text-ink whitespace-nowrap">
-                      <div className="flex items-center gap-1.5">
-                        {(() => {
-                          const carrier = detectCarrier(msg.recipient);
-                          return (
-                            <>
-                              <TelcoLogo carrier={carrier.name} className="h-3.5 w-3.5" />
-                              <span
-                                className={`rounded px-1 py-0.2 text-[9px] font-bold font-sans ${carrier.badge}`}
-                                title={`${carrier.fullName || carrier.name}`}
-                              >
-                                {carrier.name}
-                              </span>
-                              <span className="font-semibold text-ink">{formatPhoneNumber(msg.recipient)}</span>
-                            </>
-                          );
-                        })()}
-                      </div>
-                    </td>
-
-                    <td className="py-2.5 px-2.5 max-w-[180px] lg:max-w-[220px] truncate text-ink-body" title={msg.message}>
-                      {msg.message}
-                    </td>
-
-                    <td className="py-2.5 px-2.5 text-ink-soft whitespace-nowrap text-[11px]">
-                      {formatDate(msg.sent_at)}
-                    </td>
-
-                    <td className="py-2.5 px-2.5 whitespace-nowrap text-[11px]">
-                      {msg.status === "DELIVRD" && msg.delivered_at ? (
+                      <td className="py-2.5 px-2.5 font-mono text-[11px] font-medium text-ink whitespace-nowrap">
                         <div className="flex items-center gap-1">
-                          <span className="text-success-fg font-medium">
-                            {formatDate(msg.delivered_at)}
+                          <span title={msg.message_id} className="max-w-[110px] truncate">
+                            {msg.message_id}
                           </span>
+                          <button
+                            type="button"
+                            onClick={() => copyText(msg.message_id)}
+                            className="opacity-0 group-hover:opacity-100 hover:text-accent transition-opacity p-0.5"
+                            title="Copy Message ID"
+                          >
+                            <CopyIcon className="h-3 w-3" />
+                          </button>
+                          {copiedId === msg.message_id && (
+                            <span className="text-[9px] text-accent font-sans font-bold">Copied</span>
+                          )}
+                        </div>
+                      </td>
+
+                      <td className="py-2.5 px-2.5 whitespace-nowrap">
+                        <span className="rounded-md bg-chip px-2 py-0.5 font-semibold text-ink-body text-[11px]">
+                          {msg.sender_id}
+                        </span>
+                      </td>
+
+                      <td className="py-2.5 px-2.5 font-mono text-[11px] text-ink whitespace-nowrap">
+                        <div className="flex items-center gap-1.5">
                           {(() => {
-                            try {
-                              const diffSec = Math.round(
-                                (new Date(msg.delivered_at).getTime() - new Date(msg.sent_at).getTime()) / 1000
-                              );
-                              if (diffSec >= 0 && diffSec < 3600) {
-                                return (
-                                  <span className="rounded bg-success-bg px-1 py-0.2 text-[9px] font-semibold text-success-fg">
-                                    +{diffSec}s
-                                  </span>
-                                );
-                              }
-                            } catch {}
-                            return null;
+                            const carrier = detectCarrier(msg.recipient);
+                            return (
+                              <>
+                                <TelcoLogo carrier={carrier.name} className="h-3.5 w-3.5" />
+                                <span
+                                  className={`rounded px-1 py-0.2 text-[9px] font-bold font-sans ${carrier.badge}`}
+                                  title={`${carrier.fullName || carrier.name}`}
+                                >
+                                  {carrier.name}
+                                </span>
+                                <span className="font-semibold text-ink">{formatPhoneNumber(msg.recipient)}</span>
+                              </>
+                            );
                           })()}
                         </div>
-                      ) : msg.status === "FAILED" ? (
-                        <span className="text-danger-fg text-[11px] font-medium">
-                          Failed / Expired
-                        </span>
-                      ) : (
-                        <span className="text-ink-faint italic text-[11px]">Awaiting callback</span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="py-2.5 pr-3 text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        onClick={() => setExpandedId(isExpanded ? null : msg.id)}
-                        className="rounded-md px-2 py-0.5 text-xs font-semibold text-accent hover:bg-accent-wash transition-colors"
-                      >
-                        {isExpanded ? "Hide" : "Inspect"}
-                      </button>
-                    </td>
-                  </tr>
+                      <td className="py-2.5 px-2.5 max-w-[180px] lg:max-w-[220px] truncate text-ink-body" title={msg.message}>
+                        {msg.message}
+                      </td>
+
+                      <td className="py-2.5 px-2.5 text-ink-soft whitespace-nowrap text-[11px]">
+                        {formatDate(msg.sent_at)}
+                      </td>
+
+                      <td className="py-2.5 px-2.5 whitespace-nowrap text-[11px]">
+                        {msg.status === "DELIVRD" && msg.delivered_at ? (
+                          <div className="flex items-center gap-1">
+                            <span className="text-success-fg font-medium">
+                              {formatDate(msg.delivered_at)}
+                            </span>
+                            {(() => {
+                              try {
+                                const diffSec = Math.round(
+                                  (new Date(msg.delivered_at).getTime() - new Date(msg.sent_at).getTime()) / 1000
+                                );
+                                if (diffSec >= 0 && diffSec < 3600) {
+                                  return (
+                                    <span className="rounded bg-success-bg px-1 py-0.2 text-[9px] font-semibold text-success-fg">
+                                      +{diffSec}s
+                                    </span>
+                                  );
+                                }
+                              } catch {}
+                              return null;
+                            })()}
+                          </div>
+                        ) : msg.status === "FAILED" ? (
+                          <span className="text-danger-fg text-[11px] font-medium">
+                            Failed / Expired
+                          </span>
+                        ) : (
+                          <span className="text-ink-faint italic text-[11px]">Awaiting callback</span>
+                        )}
+                      </td>
+
+                      <td className="py-2.5 pr-3 text-right whitespace-nowrap">
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(isExpanded ? null : msg.id)}
+                          className={`rounded-md px-2.5 py-1 text-xs font-semibold transition-all ${
+                            isExpanded
+                              ? "bg-accent text-white shadow-sm"
+                              : "text-accent hover:bg-accent-wash"
+                          }`}
+                        >
+                          {isExpanded ? "Hide" : "Inspect"}
+                        </button>
+                      </td>
+                    </tr>
+
+                    {isExpanded && (
+                      <tr className="bg-canvas/50">
+                        <td colSpan={8} className="p-3 sm:p-4">
+                          <div className="rounded-2xl border border-ink/[0.08] bg-white p-4 shadow-sm text-xs motion-safe:animate-fade-in">
+                            <div className="flex items-center justify-between border-b border-ink/[0.06] pb-2.5 font-bold text-ink">
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono text-accent">Inspection Audit: {msg.message_id}</span>
+                                <span className="rounded bg-chip px-2 py-0.5 text-[10px] text-ink-soft">
+                                  Sender: {msg.sender_id}
+                                </span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setExpandedId(null)}
+                                className="rounded px-2 py-0.5 text-xs font-semibold text-ink-soft hover:bg-chip hover:text-ink transition-colors"
+                              >
+                                Close ✕
+                              </button>
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <div className="flex items-center justify-between mb-1">
+                                  <p className="font-semibold text-ink-soft">Full Message Content:</p>
+                                  <button
+                                    type="button"
+                                    onClick={() => copyText(msg.message)}
+                                    className="text-[10px] text-accent hover:underline flex items-center gap-1 font-semibold"
+                                  >
+                                    <CopyIcon className="h-3 w-3" />
+                                    <span>Copy Text</span>
+                                  </button>
+                                </div>
+                                <div className="rounded-xl bg-canvas/40 p-3 border border-ink/[0.06] text-ink font-sans whitespace-pre-wrap leading-relaxed">
+                                  {msg.message}
+                                </div>
+                              </div>
+
+                              <div className="space-y-2.5">
+                                <div>
+                                  <span className="font-semibold text-ink-soft">Recipient & Mobile Carrier:</span>
+                                  <div className="mt-1 flex items-center gap-2.5 rounded-xl bg-canvas/40 p-2.5 border border-ink/[0.06]">
+                                    {(() => {
+                                      const carrier = detectCarrier(msg.recipient);
+                                      return (
+                                        <>
+                                          <TelcoLogo carrier={carrier.name} className="h-5 w-5" />
+                                          <div>
+                                            <div className="flex items-center gap-1.5 font-bold text-ink">
+                                              <span>{carrier.fullName || carrier.name}</span>
+                                              <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${carrier.badge}`}>
+                                                {carrier.name}
+                                              </span>
+                                            </div>
+                                            <div className="font-mono text-xs text-ink-soft">
+                                              {formatPhoneNumber(msg.recipient)}
+                                            </div>
+                                          </div>
+                                        </>
+                                      );
+                                    })()}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <span className="font-semibold text-ink-soft">Gateway Response:</span>
+                                  <div className="mt-1 flex items-center justify-between rounded-xl bg-canvas/40 p-2 border border-ink/[0.06]">
+                                    <code className="font-mono text-[11px] text-ink truncate mr-2">
+                                      {msg.raw_response || "N/A"}
+                                    </code>
+                                    {msg.raw_response && (
+                                      <button
+                                        type="button"
+                                        onClick={() => copyText(msg.raw_response!)}
+                                        className="shrink-0 p-1 text-ink-soft hover:text-accent"
+                                        title="Copy Gateway Response"
+                                      >
+                                        <CopyIcon className="h-3 w-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                <div>
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span className="font-semibold text-ink-soft">Carrier DLR Callback Telemetry:</span>
+                                    {msg.raw_callback && (
+                                      <button
+                                        type="button"
+                                        onClick={() => copyText(msg.raw_callback!)}
+                                        className="text-[10px] text-accent hover:underline flex items-center gap-1 font-semibold"
+                                      >
+                                        <CopyIcon className="h-3 w-3" />
+                                        <span>Copy JSON</span>
+                                      </button>
+                                    )}
+                                  </div>
+                                  <div className="rounded-xl bg-canvas/40 p-2.5 font-mono text-[11px] text-ink border border-ink/[0.06] overflow-x-auto max-h-36">
+                                    {msg.raw_callback ? (
+                                      <pre className="whitespace-pre-wrap">{msg.raw_callback}</pre>
+                                    ) : (
+                                      <span className="text-ink-faint italic">Awaiting carrier delivery report from Nalo webhook.</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>
           </table>
         )}
       </div>
-
-      {/* Expanded Modal/Details Drawer when Inspect is clicked */}
-      {expandedId !== null && (() => {
-        const selectedMsg = messages.find((m) => m.id === expandedId);
-        if (!selectedMsg) return null;
-
-        return (
-          <div className="mt-4 rounded-2xl border border-ink/[0.1] bg-canvas/80 p-4 motion-safe:animate-fade-in text-xs">
-            <div className="flex items-center justify-between border-b border-ink/[0.08] pb-2 font-bold text-ink">
-              <span>Message Inspector: ID {selectedMsg.message_id}</span>
-              <button
-                type="button"
-                onClick={() => setExpandedId(null)}
-                className="text-ink-soft hover:text-ink font-semibold"
-              >
-                Close ✕
-              </button>
-            </div>
-            <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <p className="font-semibold text-ink-soft mb-1">Full Message Content:</p>
-                <div className="rounded-xl bg-white p-3 border border-ink/[0.06] text-ink font-sans whitespace-pre-wrap">
-                  {selectedMsg.message}
-                </div>
-              </div>
-              <div className="space-y-2.5">
-                <div>
-                  <span className="font-semibold text-ink-soft">Recipient & Mobile Carrier: </span>
-                  <div className="mt-1 flex items-center gap-2.5 rounded-xl bg-white p-2.5 border border-ink/[0.06]">
-                    {(() => {
-                      const carrier = detectCarrier(selectedMsg.recipient);
-                      return (
-                        <>
-                          <TelcoLogo carrier={carrier.name} className="h-5 w-5" />
-                          <div>
-                            <div className="flex items-center gap-1.5 font-bold text-ink">
-                              <span>{carrier.fullName || carrier.name}</span>
-                              <span className={`rounded px-1.5 py-0.2 text-[9px] font-bold ${carrier.badge}`}>
-                                {carrier.name}
-                              </span>
-                            </div>
-                            <div className="font-mono text-xs text-ink-soft">
-                              {formatPhoneNumber(selectedMsg.recipient)}
-                            </div>
-                          </div>
-                        </>
-                      );
-                    })()}
-                  </div>
-                </div>
-
-                <div>
-                  <span className="font-semibold text-ink-soft">Gateway Response: </span>
-                  <code className="font-mono text-ink bg-white px-2 py-0.5 rounded border border-ink/[0.06]">
-                    {selectedMsg.raw_response || "N/A"}
-                  </code>
-                </div>
-                <div>
-                  <span className="font-semibold text-ink-soft">Callback Report: </span>
-                  <div className="mt-1 rounded-xl bg-white p-2.5 font-mono text-[11px] text-ink border border-ink/[0.06] overflow-x-auto">
-                    {selectedMsg.raw_callback ? (
-                      <pre>{selectedMsg.raw_callback}</pre>
-                    ) : (
-                      <span className="text-ink-faint italic">Awaiting carrier delivery report.</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        );
-      })()}
     </div>
   );
 }
