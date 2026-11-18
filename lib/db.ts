@@ -19,8 +19,15 @@ let pgPool: Pool | null = null;
 let sqliteDb: SqliteDb | null = null;
 let pgInitialized = false;
 
+export function getDatabaseConnectionString(): string {
+  return (
+    process.env.DATABASE_URL?.trim() ||
+    "postgresql://nalo:nalosecretpassword@localhost:5433/nalosms"
+  );
+}
+
 export function isPostgres(): boolean {
-  const url = process.env.DATABASE_URL?.trim();
+  const url = getDatabaseConnectionString();
   return Boolean(url && (url.startsWith("postgres://") || url.startsWith("postgresql://")));
 }
 
@@ -31,7 +38,7 @@ export function getDatabaseEngine(): "PostgreSQL" | "SQLite" {
 async function initPg(): Promise<Pool> {
   if (pgPool && pgInitialized) return pgPool;
 
-  const connectionString = process.env.DATABASE_URL?.trim();
+  const connectionString = getDatabaseConnectionString();
   if (!connectionString) {
     throw new Error("initPg called but DATABASE_URL is not set");
   }
@@ -551,12 +558,12 @@ export async function updateMessageDelivery(data: {
 
     let updateRes = await pool.query(
       `UPDATE messages
-       SET status = $1,
-           status_code = COALESCE($2, status_code),
-           delivered_at = $3,
-           raw_callback = $4,
-           error_message = CASE WHEN $1 = 'DELIVRD' THEN null ELSE COALESCE($6, error_message) END
-       WHERE message_id = $5`,
+       SET status = CAST($1 AS VARCHAR),
+           status_code = COALESCE(CAST($2 AS VARCHAR), status_code),
+           delivered_at = CAST($3 AS VARCHAR),
+           raw_callback = CAST($4 AS TEXT),
+           error_message = CASE WHEN CAST($1 AS VARCHAR) = 'DELIVRD' THEN null ELSE COALESCE(CAST($6 AS TEXT), error_message) END
+       WHERE message_id = CAST($5 AS VARCHAR)`,
       [
         normalizedStatus,
         data.statusCode ?? null,
@@ -575,15 +582,15 @@ export async function updateMessageDelivery(data: {
 
       updateRes = await pool.query(
         `UPDATE messages
-         SET status = $1,
-             status_code = COALESCE($2, status_code),
-             delivered_at = $3,
-             raw_callback = $4,
-             error_message = CASE WHEN $1 = 'DELIVRD' THEN null ELSE COALESCE($6, error_message) END
+         SET status = CAST($1 AS VARCHAR),
+             status_code = COALESCE(CAST($2 AS VARCHAR), status_code),
+             delivered_at = CAST($3 AS VARCHAR),
+             raw_callback = CAST($4 AS TEXT),
+             error_message = CASE WHEN CAST($1 AS VARCHAR) = 'DELIVRD' THEN null ELSE COALESCE(CAST($6 AS TEXT), error_message) END
          WHERE id = (
            SELECT id FROM messages
-           WHERE recipient LIKE '%' || $5
-             AND (status IN ('SUBMITTED', 'SENT', 'PENDING') OR $1 = 'DELIVRD')
+           WHERE recipient LIKE '%' || CAST($5 AS VARCHAR)
+             AND (status IN ('SUBMITTED', 'SENT', 'PENDING') OR CAST($1 AS VARCHAR) = 'DELIVRD')
            ORDER BY id DESC
            LIMIT 1
          )`,
