@@ -42,13 +42,68 @@ const TAB_TITLES: Record<TabId, { title: string; subtitle: string }> = {
   },
 };
 
+const VALID_TABS: TabId[] = ["send", "logs", "analytics", "gateway"];
+
+function getInitialTab(): TabId {
+  if (typeof window === "undefined") return "send";
+
+  try {
+    // 1. Check URL hash (e.g. #logs, #analytics)
+    const hash = window.location.hash.replace("#", "").toLowerCase() as TabId;
+    if (VALID_TABS.includes(hash)) return hash;
+
+    // 2. Check query params (e.g. ?tab=logs)
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get("tab")?.toLowerCase() as TabId;
+    if (tabParam && VALID_TABS.includes(tabParam)) return tabParam;
+
+    // 3. Check localStorage
+    const saved = localStorage.getItem("nalo_active_tab") as TabId;
+    if (saved && VALID_TABS.includes(saved)) return saved;
+  } catch {}
+
+  return "send";
+}
+
 export default function SmsDashboard({ config }: Props) {
-  const [activeTab, setActiveTab] = useState<TabId>("send");
+  const [activeTab, setActiveTabState] = useState<TabId>("send");
   const [refreshTrigger, setRefreshTrigger] = useState(0);
   const [balance, setBalance] = useState<number | null>(config.balance ?? 9.744);
   const [messageCount, setMessageCount] = useState<number>(0);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+
+  // Restore active tab from URL hash, search param, or localStorage on mount
+  useEffect(() => {
+    const initial = getInitialTab();
+    if (initial !== "send") {
+      setActiveTabState(initial);
+      if (!window.location.hash) {
+        window.history.replaceState(null, "", `#${initial}`);
+      }
+    }
+
+    const handleHashChange = () => {
+      const currentHash = window.location.hash.replace("#", "").toLowerCase() as TabId;
+      if (VALID_TABS.includes(currentHash)) {
+        setActiveTabState(currentHash);
+        try {
+          localStorage.setItem("nalo_active_tab", currentHash);
+        } catch {}
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
+
+  const handleTabChange = useCallback((newTab: TabId) => {
+    setActiveTabState(newTab);
+    try {
+      localStorage.setItem("nalo_active_tab", newTab);
+      window.history.replaceState(null, "", `#${newTab}`);
+    } catch {}
+  }, []);
 
   // Real-time phone preview state mirrored from SendSmsForm
   const [phonePreviewState, setPhonePreviewState] = useState({
@@ -103,7 +158,7 @@ export default function SmsDashboard({ config }: Props) {
       {/* 1. Left Sidebar Navigation */}
       <Sidebar
         activeTab={activeTab}
-        onTabChange={setActiveTab}
+        onTabChange={handleTabChange}
         messageCount={messageCount}
         balance={balance}
         onOpenBalanceSync={() => setIsBalanceModalOpen(true)}
