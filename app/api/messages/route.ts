@@ -49,27 +49,15 @@ export async function GET() {
         }
       }
 
-      // Reconcile real handset delivery if it was prematurely expired by previous 20s timeout
-      if (
-        msg.recipient.includes("558816150") &&
-        msg.status === "FAILED" &&
-        msg.error_message?.includes("Carrier Error 201: Delivery expired")
-      ) {
+      // Sanitize delivery state: Any message marked DELIVRD should never retain error messages
+      if (msg.status === "DELIVRD" && msg.error_message) {
         await updateMessageDelivery({
           messageId: msg.message_id,
           status: "DELIVRD",
-          statusCode: "000",
+          statusCode: msg.status_code || "000",
           recipient: msg.recipient,
-          receivedAt: new Date(new Date(msg.sent_at).getTime() + 3000).toISOString(),
-          rawPayload: JSON.stringify({
-            mid: msg.message_id,
-            msisdn: msg.recipient,
-            source: msg.sender_id,
-            network: "MTN",
-            status: "DELIVRD",
-            status_code: "000",
-            delivery_date: new Date(new Date(msg.sent_at).getTime() + 3000).toISOString(),
-          }),
+          receivedAt: msg.delivered_at || new Date().toISOString(),
+          rawPayload: msg.raw_callback || undefined,
         });
         updatedAny = true;
       }
