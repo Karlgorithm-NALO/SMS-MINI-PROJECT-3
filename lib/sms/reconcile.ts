@@ -60,7 +60,7 @@ export async function reconcilePendingMessages(now = Date.now()): Promise<{
   await execQuery(
     `UPDATE messages
      SET error_message = NULL
-     WHERE status = 'DELIVRD' AND error_message IS NOT NULL`
+     WHERE UPPER(status) LIKE '%DELIV%' AND error_message IS NOT NULL`
   );
 
   // 3) Retry parked callbacks that arrived before their message could be matched

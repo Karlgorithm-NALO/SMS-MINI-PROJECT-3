@@ -252,6 +252,7 @@ function initSqlite(): SqliteDb {
   // Enable WAL mode for high performance concurrent reads and writes
   db.exec("PRAGMA journal_mode = WAL;");
   db.exec("PRAGMA synchronous = NORMAL;");
+  db.exec("PRAGMA busy_timeout = 5000;");
 
   // Create tables for messages and delivery reports
   db.exec(`
@@ -436,7 +437,7 @@ export async function saveSentMessage(data: {
       status: row.status as SmsStatus,
       status_source: row.status_source || "system",
       status_code: row.status_code,
-      error_message: row.error_message,
+      error_message: (String(row.status || '').toUpperCase().includes('DELIV')) ? null : row.error_message,
       sent_at: row.sent_at,
       delivered_at: row.delivered_at,
       failed_at: row.failed_at,
@@ -692,7 +693,7 @@ export async function getAllMessages(limit = 100): Promise<SmsRecord[]> {
       status: row.status as SmsStatus,
       status_source: row.status_source || "system",
       status_code: row.status_code,
-      error_message: row.error_message,
+      error_message: (String(row.status || '').toUpperCase().includes('DELIV')) ? null : row.error_message,
       sent_at: row.sent_at,
       delivered_at: row.delivered_at,
       failed_at: row.failed_at ?? null,
@@ -722,7 +723,7 @@ export async function getAllMessages(limit = 100): Promise<SmsRecord[]> {
     status: row.status as SmsStatus,
     status_source: (row.status_source as string) || "system",
     status_code: (row.status_code as string) ?? null,
-    error_message: (row.error_message as string) ?? null,
+    error_message: (String(row.status || '').toUpperCase().includes('DELIV')) ? null : ((row.error_message as string) ?? null),
     sent_at: String(row.sent_at),
     delivered_at: (row.delivered_at as string) ?? null,
     failed_at: (row.failed_at as string) ?? null,
