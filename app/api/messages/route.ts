@@ -8,8 +8,8 @@ export async function GET() {
   try {
     let messages = await getAllMessages(100);
 
-    // If database is empty (e.g. freshly deployed container on Render), auto-seed the historical messages
-    if (messages.length === 0) {
+    // If database has fewer messages than standard seed, backfill missing historical messages
+    if (messages.length < 18) {
       await seedInitialDataIfEmpty();
       messages = await getAllMessages(100);
     }

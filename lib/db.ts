@@ -114,20 +114,60 @@ async function initPg(): Promise<Pool> {
 
 function seedSqliteIfEmpty(db: SqliteDb) {
   try {
-    const row = db.prepare("SELECT count(*) as count FROM messages").get() as { count?: number };
-    if (!row || Number(row.count) === 0) {
-      const seedPath = path.join(process.cwd(), "data", "seed_messages.json");
-      if (fs.existsSync(seedPath)) {
-        const raw = fs.readFileSync(seedPath, "utf-8");
-        const list = JSON.parse(raw);
-        if (Array.isArray(list) && list.length > 0) {
-          const insertStmt = db.prepare(`
-            INSERT INTO messages (
+    const seedPath = path.join(process.cwd(), "data", "seed_messages.json");
+    if (fs.existsSync(seedPath)) {
+      const raw = fs.readFileSync(seedPath, "utf-8");
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) {
+        const insertStmt = db.prepare(`
+          INSERT INTO messages (
+            message_id, sender_id, recipient, message, status, status_code, error_message, sent_at, delivered_at, raw_response, raw_callback
+          )
+          SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+          WHERE NOT EXISTS (SELECT 1 FROM messages WHERE message_id = ?)
+        `);
+        for (const m of list) {
+          insertStmt.run(
+            m.message_id,
+            m.sender_id,
+            m.recipient,
+            m.message,
+            m.status,
+            m.status_code || null,
+            m.error_message || null,
+            m.sent_at,
+            m.delivered_at || null,
+            m.raw_response || null,
+            m.raw_callback || null,
+            m.message_id
+          );
+        }
+      }
+    }
+    db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sms_balance', '9.552')").run();
+    db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sms_rate', '0.032')").run();
+  } catch (err) {
+    console.error("Failed to seed SQLite database:", err);
+  }
+}
+
+async function seedPgIfEmpty(pool: Pool) {
+  try {
+    const seedPath = path.join(process.cwd(), "data", "seed_messages.json");
+    if (fs.existsSync(seedPath)) {
+      const raw = fs.readFileSync(seedPath, "utf-8");
+      const list = JSON.parse(raw);
+      if (Array.isArray(list) && list.length > 0) {
+        for (const m of list) {
+          await pool.query(
+            `INSERT INTO messages (
               message_id, sender_id, recipient, message, status, status_code, error_message, sent_at, delivered_at, raw_response, raw_callback
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-          `);
-          for (const m of list) {
-            insertStmt.run(
+            )
+            SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+            WHERE NOT EXISTS (
+              SELECT 1 FROM messages WHERE message_id = $1
+            )`,
+            [
               m.message_id,
               m.sender_id,
               m.recipient,
@@ -138,53 +178,14 @@ function seedSqliteIfEmpty(db: SqliteDb) {
               m.sent_at,
               m.delivered_at || null,
               m.raw_response || null,
-              m.raw_callback || null
-            );
-          }
+              m.raw_callback || null,
+            ]
+          );
         }
       }
-      db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('sms_balance', '9.744')").run();
-      db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('sms_rate', '0.032')").run();
     }
-  } catch (err) {
-    console.error("Failed to seed SQLite database:", err);
-  }
-}
-
-async function seedPgIfEmpty(pool: Pool) {
-  try {
-    const res = await pool.query("SELECT count(*) as count FROM messages");
-    if (parseInt(res.rows[0]?.count || "0", 10) === 0) {
-      const seedPath = path.join(process.cwd(), "data", "seed_messages.json");
-      if (fs.existsSync(seedPath)) {
-        const raw = fs.readFileSync(seedPath, "utf-8");
-        const list = JSON.parse(raw);
-        if (Array.isArray(list) && list.length > 0) {
-          for (const m of list) {
-            await pool.query(
-              `INSERT INTO messages (
-                message_id, sender_id, recipient, message, status, status_code, error_message, sent_at, delivered_at, raw_response, raw_callback
-              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
-              [
-                m.message_id,
-                m.sender_id,
-                m.recipient,
-                m.message,
-                m.status,
-                m.status_code || null,
-                m.error_message || null,
-                m.sent_at,
-                m.delivered_at || null,
-                m.raw_response || null,
-                m.raw_callback || null,
-              ]
-            );
-          }
-        }
-      }
-      await pool.query("INSERT INTO app_settings (key, value) VALUES ('sms_balance', '9.744') ON CONFLICT (key) DO UPDATE SET value = '9.744'");
-      await pool.query("INSERT INTO app_settings (key, value) VALUES ('sms_rate', '0.032') ON CONFLICT (key) DO UPDATE SET value = '0.032'");
-    }
+    await pool.query("INSERT INTO app_settings (key, value) VALUES ('sms_balance', '9.552') ON CONFLICT (key) DO NOTHING");
+    await pool.query("INSERT INTO app_settings (key, value) VALUES ('sms_rate', '0.032') ON CONFLICT (key) DO NOTHING");
   } catch (err) {
     console.error("Failed to seed PostgreSQL database:", err);
   }
