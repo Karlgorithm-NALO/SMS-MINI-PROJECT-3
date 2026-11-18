@@ -38,7 +38,7 @@ SET
 WHERE id = CAST($1 AS INTEGER)
   AND (
        status IN ('QUEUED', 'SUBMITTED', 'SENT', 'PENDING')
-    OR (CAST($2 AS TEXT) = 'DELIVRD' AND status <> 'DELIVRD')
+    OR (CAST($2 AS TEXT) = 'DELIVRD' AND (status <> 'DELIVRD' OR error_message IS NOT NULL))
     OR (CAST($2 AS TEXT) <> 'DELIVRD'
         AND status IN ('UNDELIV', 'EXPIRED', 'FAILED')
         AND status_source IN ('synthetic', 'ttl'))
