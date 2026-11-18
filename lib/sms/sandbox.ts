@@ -49,26 +49,49 @@ export function isSandboxNumber(recipient: string): boolean {
 }
 
 /**
- * SQL for resolving due sandbox messages.
- * STRICTLY restricted to is_sandbox = 1 rows! Real recipient numbers are 100% immune.
- *
- * Parameters:
- * $1: failed_at ISO string
- * $2: current epoch ms
- * $3: optional message_id or null
+ * Returns dynamic SQL for resolving due sandbox messages.
+ * When targetId is null/omitted, avoids passing a null parameter so PostgreSQL type deduction is 100% deterministic.
  */
-export const RESOLVE_SANDBOX_SQL = `
+export function getResolveSandboxSql(targetId?: string | null): { sql: string; params: unknown[] } {
+  const now = Date.now();
+  const failedIso = new Date(now).toISOString();
+
+  if (targetId) {
+    return {
+      sql: `
 UPDATE messages
 SET
   status        = 'FAILED',
   status_source = 'synthetic',
   status_code   = '201',
   error_message = 'Handset unreachable or number unallocated (simulated test number)',
-  failed_at     = CAST($1 AS TEXT)
+  failed_at     = $1
 WHERE is_sandbox = 1
   AND status IN ('SUBMITTED', 'PENDING')
   AND sandbox_resolve_at IS NOT NULL
-  AND sandbox_resolve_at <= CAST($2 AS BIGINT)
-  AND (CAST($3 AS TEXT) IS NULL OR message_id = CAST($3 AS TEXT) OR CAST(id AS TEXT) = CAST($3 AS TEXT))
+  AND sandbox_resolve_at <= $2
+  AND (message_id = $3 OR CAST(id AS TEXT) = $3)
 RETURNING id
-`;
+      `,
+      params: [failedIso, now, String(targetId)],
+    };
+  }
+
+  return {
+    sql: `
+UPDATE messages
+SET
+  status        = 'FAILED',
+  status_source = 'synthetic',
+  status_code   = '201',
+  error_message = 'Handset unreachable or number unallocated (simulated test number)',
+  failed_at     = $1
+WHERE is_sandbox = 1
+  AND status IN ('SUBMITTED', 'PENDING')
+  AND sandbox_resolve_at IS NOT NULL
+  AND sandbox_resolve_at <= $2
+RETURNING id
+    `,
+    params: [failedIso, now],
+  };
+}

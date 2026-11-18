@@ -1,6 +1,6 @@
 import { execQuery } from "../db";
 import { applyEvent, parsePayload } from "./callback";
-import { RESOLVE_SANDBOX_SQL } from "./sandbox";
+import { getResolveSandboxSql } from "./sandbox";
 
 const EXPIRY_GRACE_MS = 30 * 60_000; // 30 minutes grace past validity expiry
 const PARKED_MAX_AGE_MS = 24 * 60 * 60_000; // Stop retrying parked events after 24 hours
@@ -52,8 +52,8 @@ export async function reconcilePendingMessages(now = Date.now()): Promise<{
 }> {
   // 1) Settle due sandbox test numbers lazily in database.
   //    STRICTLY scoped to is_sandbox = 1: real numbers are 100% unaffected.
-  const failedIso = new Date(now).toISOString();
-  const sandboxRows = await execQuery(RESOLVE_SANDBOX_SQL, [failedIso, now, null]);
+  const { sql: sbSql, params: sbParams } = getResolveSandboxSql(null);
+  const sandboxRows = await execQuery(sbSql, sbParams);
   const sandboxResolved = sandboxRows.length;
 
   // 2) Retry parked callbacks that arrived before their message could be matched
@@ -61,6 +61,7 @@ export async function reconcilePendingMessages(now = Date.now()): Promise<{
 
   // 3) Expire real messages past their full SMSC validity period + grace
   //    (Marked EXPIRED with status_source = 'ttl'; late DELIVRD can still override)
+  const failedIso = new Date(now).toISOString();
   const expiredRows = await execQuery(
     `UPDATE messages
      SET
