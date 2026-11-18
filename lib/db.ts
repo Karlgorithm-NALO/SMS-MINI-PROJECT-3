@@ -56,6 +56,12 @@ async function initPg(): Promise<Pool> {
       connectionString,
       ssl: isCloud && !isSslDisabled ? { rejectUnauthorized: false } : undefined,
       connectionTimeoutMillis: 10000,
+      idleTimeoutMillis: 30000,
+      max: 10,
+    });
+
+    pgPool.on("error", (err) => {
+      console.warn("[PostgreSQL Pool Notice]: Idle client connection recycled:", err.message);
     });
   }
 
