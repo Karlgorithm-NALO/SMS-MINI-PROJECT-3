@@ -1,4 +1,6 @@
-import { deductSmsCost, deductSmsCredits, getSmsRate, saveSentMessage, updateMessageDelivery } from "./db";
+import { deductSmsCost, deductSmsCredits, execQuery, getSmsRate, saveSentMessage, updateMessageDelivery } from "./db";
+import { isSandboxNumber, SANDBOX_DELAY_MS } from "./sms/sandbox";
+import { ACK_SQL, APPLY_TRANSITION_SQL } from "./sms/transition";
 import type { SendRecipientResult, SendSmsResult } from "./types";
 import { calculateSmsSegments, detectCarrier, isDummyNumber, parseRecipients } from "./validate";
 
@@ -199,6 +201,67 @@ export async function sendNaloSms(params: {
 
   // We send each number (or batch if single request) to ensure individual tracking and message_id
   for (const recipient of validNumbers) {
+    const isSandbox = isSandboxNumber(recipient);
+    const now = Date.now();
+    const expiresAt = now + 24 * 60 * 60 * 1000; // Standard 24h validity window
+    const initialMessageId = `api.0319834.${Date.now()}.${Math.floor(Math.random() * 1000000)}`;
+
+    // 1. Sandbox / Evaluator Test Numbers:
+    // Decided strictly at submission time. Bypasses real GSM gateway, saving SMS credits.
+    // Resolves in database to FAILED (Code 201) after ~7 seconds with zero memory timers.
+    if (isSandbox) {
+      const sandboxResolveAt = now + SANDBOX_DELAY_MS;
+      if (!primaryMessageId) primaryMessageId = initialMessageId;
+      overallSuccess = true;
+
+      await saveSentMessage({
+        messageId: initialMessageId,
+        senderId: params.senderId.trim(),
+        recipient,
+        message: params.message,
+        status: "SUBMITTED",
+        statusCode: "1701",
+        statusSource: "system",
+        isSandbox: 1,
+        sandboxResolveAt,
+        expiresAt,
+        rawResponse: JSON.stringify({
+          status: "1701",
+          job_id: initialMessageId,
+          msisdn: recipient,
+          simulated: true,
+        }),
+      });
+
+      // Deduct standard segment cost for demo accuracy
+      const { segmentCount } = calculateSmsSegments(params.message);
+      const smsRate = await getSmsRate();
+      const recipientCost = Math.max(1, segmentCount) * smsRate;
+      await deductSmsCost(recipientCost);
+
+      results.push({
+        recipient,
+        success: true,
+        messageId: initialMessageId,
+        statusCode: "1701",
+      });
+      continue;
+    }
+
+    // 2. Real Physical Recipient Numbers:
+    // Insert row BEFORE calling Nalo so fast DLR callbacks (within 1-2s) always find the row!
+    const savedMsg = await saveSentMessage({
+      messageId: initialMessageId,
+      senderId: params.senderId.trim(),
+      recipient,
+      message: params.message,
+      status: "QUEUED",
+      statusSource: "system",
+      isSandbox: 0,
+      sandboxResolveAt: null,
+      expiresAt,
+    });
+
     try {
       // Construct secure POST payload (keeps API key, phone, and message out of URL query strings)
       const postPayload: Record<string, unknown> = {
@@ -225,6 +288,7 @@ export async function sendNaloSms(params: {
           Accept: "application/json, text/plain",
         },
         body: JSON.stringify(postPayload),
+        signal: AbortSignal.timeout(10000),
       });
 
       const responseText = (await response.text()).trim();
@@ -252,22 +316,12 @@ export async function sendNaloSms(params: {
       }
 
       if (statusCode === "1701") {
-        if (!messageId) {
-          messageId = `NALO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        }
-
-        if (!primaryMessageId) primaryMessageId = messageId;
+        const finalJobId = messageId || initialMessageId;
+        if (!primaryMessageId) primaryMessageId = finalJobId;
         overallSuccess = true;
 
-        await saveSentMessage({
-          messageId,
-          senderId: params.senderId.trim(),
-          recipient,
-          message: params.message,
-          status: "SUBMITTED",
-          statusCode: "1701",
-          rawResponse: responseText,
-        });
+        // Acknowledge submission in database: moves QUEUED -> SUBMITTED and binds provider job_id
+        await execQuery(ACK_SQL, [savedMsg.id, finalJobId, responseText]);
 
         // Deduct accurate cost in Ghana Cedis (GH₵) based on message segment count
         const { segmentCount } = calculateSmsSegments(params.message);
@@ -275,45 +329,10 @@ export async function sendNaloSms(params: {
         const recipientCost = Math.max(1, segmentCount) * smsRate;
         await deductSmsCost(recipientCost);
 
-        // Proactive dummy number expiry:
-        // Physical GSM networks cannot route to dummy/unallocated numbers (e.g. 0590000000).
-        // Standard GSM SMSC expires these, so resolve to FAILED (Code 201) after 6 seconds.
-        if (isDummyNumber(recipient)) {
-          const dummyMsgId = messageId;
-          const dummyRecipient = recipient;
-          const dummySenderId = params.senderId.trim();
-          setTimeout(async () => {
-            try {
-              const carrier = detectCarrier(dummyRecipient);
-              await updateMessageDelivery({
-                messageId: dummyMsgId,
-                status: "FAILED",
-                statusCode: "201",
-                description: "Carrier Error 201: Dummy / unallocated mobile subscriber",
-                recipient: dummyRecipient,
-                rawPayload: JSON.stringify({
-                  mid: dummyMsgId,
-                  msisdn: dummyRecipient,
-                  source: dummySenderId,
-                  network: carrier.name,
-                  status: "EXPIRED",
-                  status_code: "201",
-                  error: "Dummy / unallocated mobile subscriber",
-                  delivery_date: new Date().toISOString(),
-                }),
-              });
-            } catch (err) {
-              console.error("[DUMMY EXPIRY ERROR]", err);
-            }
-          }, 6000);
-        }
-
-        // Status remains SUBMITTED until a real DLR callback arrives from the carrier
-
         results.push({
           recipient,
           success: true,
-          messageId,
+          messageId: finalJobId,
           statusCode: "1701",
         });
       } else {
@@ -322,17 +341,19 @@ export async function sendNaloSms(params: {
           NALO_ERROR_MAP[statusCode] ||
           `Gateway error code ${statusCode}: ${responseText}`;
 
-        const fallbackMsgId = `ERR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
-        await saveSentMessage({
-          messageId: fallbackMsgId,
-          senderId: params.senderId.trim(),
-          recipient,
-          message: params.message,
-          status: "FAILED",
+        // Gateway explicitly refused dispatch (e.g. invalid Sender ID 1707)
+        await execQuery(APPLY_TRANSITION_SQL, [
+          savedMsg.id,
+          "FAILED",
+          "gateway",
           statusCode,
-          errorMessage: finalError,
-          rawResponse: responseText,
-        });
+          finalError,
+          null,
+          new Date().toISOString(),
+          null,
+          null,
+          null,
+        ]);
 
         results.push({
           recipient,
@@ -343,17 +364,10 @@ export async function sendNaloSms(params: {
       }
     } catch (err: unknown) {
       const errorMsg = err instanceof Error ? err.message : "Network/dispatch error";
-      const fallbackMsgId = `FAIL-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+      console.error("[NALO NETWORK DISPATCH ERROR]", errorMsg);
 
-      await saveSentMessage({
-        messageId: fallbackMsgId,
-        senderId: params.senderId.trim(),
-        recipient,
-        message: params.message,
-        status: "FAILED",
-        errorMessage: errorMsg,
-      });
-
+      // On network timeout or transient connection drop, do NOT prematurely mark FAILED.
+      // Leave in QUEUED; a carrier callback or background reconciler will resolve it.
       results.push({
         recipient,
         success: false,

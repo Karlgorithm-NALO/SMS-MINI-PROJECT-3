@@ -1,4 +1,5 @@
 export type SmsStatus =
+  | "QUEUED"
   | "SUBMITTED"
   | "SENT"
   | "DELIVRD"
@@ -6,19 +7,29 @@ export type SmsStatus =
   | "PENDING"
   | "FAILED"
   | "UNDELIV"
+  | "EXPIRED"
   | "REJECTED";
+
+export type StatusSource = "system" | "gateway" | "carrier" | "synthetic" | "ttl";
 
 export type SmsRecord = {
   id: number;
   message_id: string; // Message ID from Nalo gateway (e.g. 1938475620)
+  gateway_message_id?: string | null;
   sender_id: string;
   recipient: string; // Normalized international format (e.g. 233241234567)
   message: string;
   status: SmsStatus;
+  status_source?: StatusSource | string;
   status_code?: string | null;
   error_message?: string | null;
   sent_at: string; // ISO 8601 string
   delivered_at?: string | null; // ISO 8601 string when callback arrived
+  failed_at?: string | null;
+  delivery_latency_ms?: number | null;
+  expires_at?: number | null;
+  is_sandbox?: number;
+  sandbox_resolve_at?: number | null;
   raw_response?: string | null;
   raw_callback?: string | null;
 };

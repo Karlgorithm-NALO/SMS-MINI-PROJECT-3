@@ -79,11 +79,27 @@ async function initPg(): Promise<Pool> {
         sent_at VARCHAR(100) NOT NULL,
         delivered_at VARCHAR(100),
         raw_response TEXT,
-        raw_callback TEXT
+        raw_callback TEXT,
+        status_source VARCHAR(50) NOT NULL DEFAULT 'system',
+        is_sandbox INTEGER NOT NULL DEFAULT 0,
+        sandbox_resolve_at BIGINT,
+        delivery_latency_ms BIGINT,
+        gateway_message_id VARCHAR(255),
+        failed_at VARCHAR(100),
+        expires_at BIGINT
       );
+
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS status_source VARCHAR(50) NOT NULL DEFAULT 'system';
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS is_sandbox INTEGER NOT NULL DEFAULT 0;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS sandbox_resolve_at BIGINT;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS delivery_latency_ms BIGINT;
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS gateway_message_id VARCHAR(255);
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS failed_at VARCHAR(100);
+      ALTER TABLE messages ADD COLUMN IF NOT EXISTS expires_at BIGINT;
 
       CREATE INDEX IF NOT EXISTS idx_messages_message_id ON messages (message_id);
       CREATE INDEX IF NOT EXISTS idx_messages_sent_at ON messages (sent_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_messages_gateway_id ON messages (gateway_message_id);
 
       CREATE TABLE IF NOT EXISTS delivery_reports (
         id SERIAL PRIMARY KEY,
@@ -97,6 +113,20 @@ async function initPg(): Promise<Pool> {
       );
 
       CREATE INDEX IF NOT EXISTS idx_dlr_message_id ON delivery_reports (message_id);
+
+      CREATE TABLE IF NOT EXISTS delivery_events (
+        dedupe_key VARCHAR(255) PRIMARY KEY,
+        provider_message_id VARCHAR(255),
+        recipient VARCHAR(50),
+        raw_status VARCHAR(50),
+        status_code VARCHAR(50),
+        payload TEXT NOT NULL,
+        received_at BIGINT NOT NULL,
+        message_id VARCHAR(255),
+        outcome VARCHAR(50),
+        attempts INTEGER NOT NULL DEFAULT 0,
+        processed_at BIGINT
+      );
 
       CREATE TABLE IF NOT EXISTS app_settings (
         key VARCHAR(50) PRIMARY KEY,
@@ -264,10 +294,88 @@ function initSqlite(): SqliteDb {
     INSERT OR IGNORE INTO app_settings (key, value) VALUES ('sms_rate', '0.032');
   `);
 
+  ensureSqliteSchema(db);
   seedSqliteIfEmpty(db);
 
   sqliteDb = db;
   return db;
+}
+
+function ensureSqliteSchema(db: SqliteDb) {
+  try {
+    const info = db.prepare("PRAGMA table_info(messages)").all() as Array<{ name: string }>;
+    const existingCols = new Set(info.map((c) => c.name));
+
+    if (!existingCols.has("status_source")) {
+      db.exec("ALTER TABLE messages ADD COLUMN status_source TEXT NOT NULL DEFAULT 'system'");
+    }
+    if (!existingCols.has("is_sandbox")) {
+      db.exec("ALTER TABLE messages ADD COLUMN is_sandbox INTEGER NOT NULL DEFAULT 0");
+    }
+    if (!existingCols.has("sandbox_resolve_at")) {
+      db.exec("ALTER TABLE messages ADD COLUMN sandbox_resolve_at INTEGER");
+    }
+    if (!existingCols.has("delivery_latency_ms")) {
+      db.exec("ALTER TABLE messages ADD COLUMN delivery_latency_ms INTEGER");
+    }
+    if (!existingCols.has("gateway_message_id")) {
+      db.exec("ALTER TABLE messages ADD COLUMN gateway_message_id TEXT");
+    }
+    if (!existingCols.has("failed_at")) {
+      db.exec("ALTER TABLE messages ADD COLUMN failed_at TEXT");
+    }
+    if (!existingCols.has("expires_at")) {
+      db.exec("ALTER TABLE messages ADD COLUMN expires_at INTEGER");
+    }
+
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS delivery_events (
+        dedupe_key TEXT PRIMARY KEY,
+        provider_message_id TEXT,
+        recipient TEXT,
+        raw_status TEXT,
+        status_code TEXT,
+        payload TEXT NOT NULL,
+        received_at INTEGER NOT NULL,
+        message_id TEXT,
+        outcome TEXT,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        processed_at INTEGER
+      );
+    `);
+  } catch (err) {
+    console.error("[SQLITE SCHEMA MIGRATION ERROR]", err);
+  }
+}
+
+/**
+ * Universal database query executor supporting both PostgreSQL and SQLite.
+ * Automatically handles positional rewriting ($1 -> ?1) and unified result formatting.
+ */
+export async function execQuery(sql: string, params: unknown[] = []): Promise<any[]> {
+  if (isPostgres()) {
+    const pool = await initPg();
+    const cleanParams = params.map((p) => (p === undefined ? null : p));
+    const res = await pool.query(sql, cleanParams);
+    return res.rows;
+  }
+
+  const db = initSqlite();
+  // Rewrite Postgres $1, $2 into SQLite ?1, ?2
+  const convertedSql = sql.replace(/\$(\d+)/g, "?$1");
+  const cleanParams = params.map((p) => (p === undefined ? null : p));
+
+  const trimmed = convertedSql.trim();
+  const isSelect = trimmed.toUpperCase().startsWith("SELECT");
+  const hasReturning = convertedSql.toUpperCase().includes("RETURNING");
+
+  const stmt = db.prepare(convertedSql);
+  if (isSelect || hasReturning) {
+    return stmt.all(...cleanParams) as any[];
+  }
+
+  const res = stmt.run(...cleanParams);
+  return [{ changes: res.changes, lastInsertRowid: res.lastInsertRowid }];
 }
 
 export async function saveSentMessage(data: {
@@ -280,16 +388,25 @@ export async function saveSentMessage(data: {
   errorMessage?: string;
   sentAt?: string;
   rawResponse?: string;
+  statusSource?: string;
+  isSandbox?: number;
+  sandboxResolveAt?: number | null;
+  expiresAt?: number | null;
 }): Promise<SmsRecord> {
   const sentAt = data.sentAt || new Date().toISOString();
+  const statusSource = data.statusSource || "system";
+  const isSandbox = data.isSandbox ?? 0;
+  const sandboxResolveAt = data.sandboxResolveAt ?? null;
+  const expiresAt = data.expiresAt ?? null;
 
   if (isPostgres()) {
     const pool = await initPg();
     const res = await pool.query(
       `INSERT INTO messages (
         message_id, sender_id, recipient, message, status,
-        status_code, error_message, sent_at, raw_response
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        status_code, error_message, sent_at, raw_response,
+        status_source, is_sandbox, sandbox_resolve_at, expires_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
       RETURNING *`,
       [
         data.messageId,
@@ -301,6 +418,10 @@ export async function saveSentMessage(data: {
         data.errorMessage ?? null,
         sentAt,
         data.rawResponse ?? null,
+        statusSource,
+        isSandbox,
+        sandboxResolveAt,
+        expiresAt,
       ]
     );
 
@@ -308,14 +429,21 @@ export async function saveSentMessage(data: {
     return {
       id: Number(row.id),
       message_id: row.message_id,
+      gateway_message_id: row.gateway_message_id ?? null,
       sender_id: row.sender_id,
       recipient: row.recipient,
       message: row.message,
       status: row.status as SmsStatus,
+      status_source: row.status_source || "system",
       status_code: row.status_code,
       error_message: row.error_message,
       sent_at: row.sent_at,
       delivered_at: row.delivered_at,
+      failed_at: row.failed_at,
+      delivery_latency_ms: row.delivery_latency_ms ? Number(row.delivery_latency_ms) : null,
+      expires_at: row.expires_at ? Number(row.expires_at) : null,
+      is_sandbox: Number(row.is_sandbox || 0),
+      sandbox_resolve_at: row.sandbox_resolve_at ? Number(row.sandbox_resolve_at) : null,
       raw_response: row.raw_response,
       raw_callback: row.raw_callback,
     };
@@ -325,8 +453,9 @@ export async function saveSentMessage(data: {
   const insert = db.prepare(`
     INSERT INTO messages (
       message_id, sender_id, recipient, message, status,
-      status_code, error_message, sent_at, raw_response
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      status_code, error_message, sent_at, raw_response,
+      status_source, is_sandbox, sandbox_resolve_at, expires_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const result = insert.run(
@@ -338,20 +467,31 @@ export async function saveSentMessage(data: {
     data.statusCode ?? null,
     data.errorMessage ?? null,
     sentAt,
-    data.rawResponse ?? null
+    data.rawResponse ?? null,
+    statusSource,
+    isSandbox,
+    sandboxResolveAt,
+    expiresAt
   );
 
   return {
     id: Number(result.lastInsertRowid),
     message_id: data.messageId,
+    gateway_message_id: null,
     sender_id: data.senderId,
     recipient: data.recipient,
     message: data.message,
     status: data.status,
+    status_source: statusSource,
     status_code: data.statusCode ?? null,
     error_message: data.errorMessage ?? null,
     sent_at: sentAt,
     delivered_at: null,
+    failed_at: null,
+    delivery_latency_ms: null,
+    expires_at: expiresAt,
+    is_sandbox: isSandbox,
+    sandbox_resolve_at: sandboxResolveAt,
     raw_response: data.rawResponse ?? null,
     raw_callback: null,
   };
@@ -545,14 +685,21 @@ export async function getAllMessages(limit = 100): Promise<SmsRecord[]> {
     return res.rows.map((row) => ({
       id: Number(row.id),
       message_id: row.message_id,
+      gateway_message_id: row.gateway_message_id ?? null,
       sender_id: row.sender_id,
       recipient: row.recipient,
       message: row.message,
       status: row.status as SmsStatus,
+      status_source: row.status_source || "system",
       status_code: row.status_code,
       error_message: row.error_message,
       sent_at: row.sent_at,
       delivered_at: row.delivered_at,
+      failed_at: row.failed_at ?? null,
+      delivery_latency_ms: row.delivery_latency_ms ? Number(row.delivery_latency_ms) : null,
+      expires_at: row.expires_at ? Number(row.expires_at) : null,
+      is_sandbox: Number(row.is_sandbox || 0),
+      sandbox_resolve_at: row.sandbox_resolve_at ? Number(row.sandbox_resolve_at) : null,
       raw_response: row.raw_response,
       raw_callback: row.raw_callback,
     }));
@@ -564,7 +711,28 @@ export async function getAllMessages(limit = 100): Promise<SmsRecord[]> {
     ORDER BY id DESC
     LIMIT ?
   `);
-  return stmt.all(limit) as unknown as SmsRecord[];
+  const rawRows = stmt.all(limit) as Array<Record<string, unknown>>;
+  return rawRows.map((row) => ({
+    id: Number(row.id),
+    message_id: String(row.message_id),
+    gateway_message_id: (row.gateway_message_id as string) ?? null,
+    sender_id: String(row.sender_id),
+    recipient: String(row.recipient),
+    message: String(row.message),
+    status: row.status as SmsStatus,
+    status_source: (row.status_source as string) || "system",
+    status_code: (row.status_code as string) ?? null,
+    error_message: (row.error_message as string) ?? null,
+    sent_at: String(row.sent_at),
+    delivered_at: (row.delivered_at as string) ?? null,
+    failed_at: (row.failed_at as string) ?? null,
+    delivery_latency_ms: row.delivery_latency_ms ? Number(row.delivery_latency_ms) : null,
+    expires_at: row.expires_at ? Number(row.expires_at) : null,
+    is_sandbox: Number(row.is_sandbox || 0),
+    sandbox_resolve_at: row.sandbox_resolve_at ? Number(row.sandbox_resolve_at) : null,
+    raw_response: (row.raw_response as string) ?? null,
+    raw_callback: (row.raw_callback as string) ?? null,
+  }));
 }
 
 export async function getMessageStats(): Promise<{

@@ -501,11 +501,24 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                             })()}
                           </div>
                         ) : msg.status === "FAILED" ? (
-                          <span className="text-danger-fg text-[11px] font-medium">
-                            Failed / Expired
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span className="text-danger-fg text-[11px] font-medium">
+                              Failed / Expired
+                            </span>
+                            {(msg.is_sandbox === 1 || msg.status_source === "synthetic") && (
+                              <span className="rounded bg-danger-bg px-1 py-0.2 text-[9px] font-semibold text-danger-fg" title="Simulated test subscriber">
+                                Sandbox
+                              </span>
+                            )}
+                          </div>
                         ) : (
-                          <span className="text-ink-faint italic text-[11px]">Awaiting callback</span>
+                          <span className="text-ink-faint italic text-[11px]">
+                            {(() => {
+                              const sentTime = new Date(msg.sent_at).getTime();
+                              const isOld = !isNaN(sentTime) && (Date.now() - sentTime >= 60_000);
+                              return isOld ? "Awaiting carrier DLR" : "Awaiting callback";
+                            })()}
+                          </span>
                         )}
                       </td>
 
@@ -529,11 +542,21 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                         <td colSpan={8} className="p-3 sm:p-4">
                           <div className="rounded-2xl border border-ink/[0.08] bg-white p-4 shadow-sm text-xs motion-safe:animate-fade-in">
                             <div className="flex items-center justify-between border-b border-ink/[0.06] pb-2.5 font-bold text-ink">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <span className="font-mono text-accent">Inspection Audit: {msg.message_id}</span>
                                 <span className="rounded bg-chip px-2 py-0.5 text-[10px] text-ink-soft">
                                   Sender: {msg.sender_id}
                                 </span>
+                                {msg.status_source && (
+                                  <span className="rounded bg-accent/10 text-accent px-2 py-0.5 text-[10px] font-semibold">
+                                    Source: {msg.status_source}
+                                  </span>
+                                )}
+                                {(msg.is_sandbox === 1 || msg.status_source === "synthetic") && (
+                                  <span className="rounded bg-danger-bg text-danger-fg px-2 py-0.5 text-[10px] font-semibold">
+                                    Simulated Sandbox
+                                  </span>
+                                )}
                               </div>
                               <button
                                 type="button"
@@ -628,6 +651,16 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                                       <span className="text-ink-faint italic">Awaiting carrier delivery report from Nalo webhook.</span>
                                     )}
                                   </div>
+                                  {msg.delivery_latency_ms !== null && msg.delivery_latency_ms !== undefined && (
+                                    <div className="mt-1.5 text-[11px] text-ink-soft">
+                                      Carrier Delivery Latency: <span className="font-mono font-bold text-success-fg">+{Math.round(msg.delivery_latency_ms / 1000)}s ({msg.delivery_latency_ms} ms)</span>
+                                    </div>
+                                  )}
+                                  {msg.error_message && (
+                                    <div className="mt-1.5 text-[11px] text-danger-fg">
+                                      Carrier Note: <span className="font-sans font-medium">{msg.error_message}</span>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             </div>
@@ -688,8 +721,24 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                         </span>
                       )}
                       {msg.status === "FAILED" && (
-                        <span className="text-[10px] font-semibold text-danger-fg bg-danger-bg px-1.5 py-0.5 rounded">
-                          Failed / Expired
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] font-semibold text-danger-fg bg-danger-bg px-1.5 py-0.5 rounded">
+                            Failed / Expired
+                          </span>
+                          {(msg.is_sandbox === 1 || msg.status_source === "synthetic") && (
+                            <span className="text-[9px] font-semibold text-danger-fg bg-danger-bg/60 px-1 py-0.2 rounded font-mono">
+                              Sandbox
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      {(msg.status === "SUBMITTED" || msg.status === "PENDING" || msg.status === "QUEUED") && (
+                        <span className="text-[10px] font-semibold text-ink-soft bg-chip px-1.5 py-0.5 rounded">
+                          {(() => {
+                            const sentTime = new Date(msg.sent_at).getTime();
+                            const isOld = !isNaN(sentTime) && (Date.now() - sentTime >= 60_000);
+                            return isOld ? "Awaiting DLR (+60s)" : "Awaiting callback";
+                          })()}
                         </span>
                       )}
                     </div>
@@ -795,6 +844,16 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                             <span className="text-ink-faint italic">Awaiting carrier delivery report from Nalo webhook.</span>
                           )}
                         </div>
+                        {msg.delivery_latency_ms !== null && msg.delivery_latency_ms !== undefined && (
+                          <div className="mt-1 text-[10px] text-ink-soft">
+                            Latency: <span className="font-mono font-bold text-success-fg">+{Math.round(msg.delivery_latency_ms / 1000)}s ({msg.delivery_latency_ms} ms)</span>
+                          </div>
+                        )}
+                        {msg.error_message && (
+                          <div className="mt-1 text-[10px] text-danger-fg">
+                            Carrier Note: <span className="font-sans font-medium">{msg.error_message}</span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}

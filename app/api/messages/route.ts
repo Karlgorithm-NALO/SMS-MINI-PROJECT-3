@@ -1,5 +1,6 @@
-import { getAllMessages, getMessageStats, seedInitialDataIfEmpty, updateMessageDelivery } from "@/lib/db";
-import { detectCarrier, isDummyNumber } from "@/lib/validate";
+import { getAllMessages, getMessageStats, seedInitialDataIfEmpty } from "@/lib/db";
+import { reconcilePendingMessages } from "@/lib/sms/reconcile";
+import { displayStatus } from "@/lib/sms/status";
 import { NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
@@ -7,6 +8,13 @@ export const runtime = "nodejs";
 
 export async function GET() {
   try {
+    const now = Date.now();
+
+    // Lazy reconciliation: Settle due sandbox numbers in database, retry parked callbacks,
+    // and expire messages exceeding the 24h SMSC validity period.
+    // Zero in-memory timers; completely safe across container sleep and restarts.
+    await reconcilePendingMessages(now);
+
     let messages = await getAllMessages(100);
 
     // If database has fewer messages than standard seed, backfill missing historical messages
@@ -15,63 +23,17 @@ export async function GET() {
       messages = await getAllMessages(100);
     }
 
-    // Handset Delivery Expiry Resolution:
-    // ONLY dummy/unallocated numbers (e.g. 0590000000, 0500000000) expire after 6 seconds.
-    // Real physical mobile numbers must NEVER be artificially expired by a short timer;
-    // they remain in SUBMITTED/PENDING awaiting authentic carrier DLR callbacks from Nalo.
-    const now = Date.now();
-    let updatedAny = false;
-    for (const msg of messages) {
-      if (msg.status === "SUBMITTED" || msg.status === "PENDING") {
-        const sentTime = new Date(msg.sent_at).getTime();
-        const dummy = isDummyNumber(msg.recipient);
-
-        if (dummy && now - sentTime >= 6000) {
-          const carrier = detectCarrier(msg.recipient);
-          await updateMessageDelivery({
-            messageId: msg.message_id,
-            status: "FAILED",
-            statusCode: "201",
-            description: "Carrier Error 201: Dummy / unallocated mobile subscriber",
-            recipient: msg.recipient,
-            rawPayload: JSON.stringify({
-              mid: msg.message_id,
-              msisdn: msg.recipient,
-              source: msg.sender_id,
-              network: carrier.name,
-              status: "EXPIRED",
-              status_code: "201",
-              error: "Dummy / unallocated mobile subscriber",
-              delivery_date: new Date().toISOString(),
-            }),
-          });
-          updatedAny = true;
-        }
-      }
-
-      // Sanitize delivery state: Any message marked DELIVRD should never retain error messages
-      if (msg.status === "DELIVRD" && msg.error_message) {
-        await updateMessageDelivery({
-          messageId: msg.message_id,
-          status: "DELIVRD",
-          statusCode: msg.status_code || "000",
-          recipient: msg.recipient,
-          receivedAt: msg.delivered_at || new Date().toISOString(),
-          rawPayload: msg.raw_callback || undefined,
-        });
-        updatedAny = true;
-      }
-    }
-
-    if (updatedAny) {
-      messages = await getAllMessages(100);
-    }
-
     const stats = await getMessageStats();
+
+    const formattedMessages = messages.map((m) => ({
+      ...m,
+      display_status: displayStatus(m, now),
+      simulated: Boolean(m.is_sandbox),
+    }));
 
     return NextResponse.json({
       success: true,
-      messages,
+      messages: formattedMessages,
       stats,
     });
   } catch (err: unknown) {

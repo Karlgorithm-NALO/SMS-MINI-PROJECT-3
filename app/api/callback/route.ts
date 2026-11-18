@@ -1,168 +1,93 @@
-import { updateMessageDelivery } from "@/lib/db";
+import { timingSafeEqual } from "node:crypto";
+import { processCallback } from "@/lib/sms/callback";
 import { NextRequest, NextResponse } from "next/server";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
-async function processCallbackPayload(data: Record<string, unknown>, rawText: string) {
-  console.log("[INCOMING DLR CALLBACK RECEIVED]:", JSON.stringify(data), "raw:", rawText);
+/**
+ * Optional token verification.
+ * If CALLBACK_TOKEN is configured in environment, verifies ?token=<token> using constant-time comparison.
+ * If CALLBACK_TOKEN is not configured, allows incoming callbacks so initial setup is painless.
+ */
+function tokenOk(supplied: string | null): boolean {
+  const expected = process.env.CALLBACK_TOKEN;
+  if (!expected) return true;
+  if (!supplied) return false;
+  try {
+    const a = Buffer.from(supplied);
+    const b = Buffer.from(expected);
+    return a.length === b.length && timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
 
-  // Case-insensitive lookup helper across all possible gateway parameter name variants
-  const lookup = (keys: string[]): string => {
-    for (const k of keys) {
-      if (data[k] !== undefined && data[k] !== null && String(data[k]).trim() !== "") {
-        return String(data[k]).trim();
-      }
-      for (const [dk, dv] of Object.entries(data)) {
-        if (dk.toLowerCase() === k.toLowerCase() && dv !== undefined && dv !== null && String(dv).trim() !== "") {
-          return String(dv).trim();
-        }
-      }
-    }
-    return "";
-  };
+async function handleCallback(req: Request, payload: Record<string, unknown>, rawText: string) {
+  const url = new URL(req.url);
+  const token = url.searchParams.get("token");
 
-  let messageId = lookup([
-    "job_id",
-    "jobId",
-    "job",
-    "message_id",
-    "messageId",
-    "msg_id",
-    "msgid",
-    "mid",
-    "id",
-    "messageID",
-    "batch_id",
-    "transaction_id",
-  ]);
-
-  let status = lookup([
-    "status",
-    "delivery_status",
-    "deliveryStatus",
-    "dlr_status",
-    "dlrStatus",
-    "state",
-    "report",
-    "dlr",
-  ]);
-
-  // If plain text pipe-separated e.g. 1701|phone|message_id
-  if (!messageId && rawText.includes("|")) {
-    const parts = rawText.trim().split("|").map((p) => p.trim());
-    if (parts.length >= 3) {
-      messageId = parts[2];
-      status = parts[0] === "1701" ? "SUBMITTED" : parts[0];
-    } else if (parts.length === 2) {
-      messageId = parts[1];
-      status = parts[0] === "1701" ? "SUBMITTED" : parts[0];
-    }
+  if (!tokenOk(token)) {
+    console.warn("[CALLBACK UNAUTHORIZED]: Invalid token supplied");
+    return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  // Handle gateway error callbacks like "1707:Invalid Source(Sender)"
-  if (rawText.includes("1707")) {
-    status = "FAILED";
+  try {
+    console.log("[INCOMING CARRIER DLR CALLBACK]:", JSON.stringify(payload));
+    const result = await processCallback(payload);
+    console.log("[CALLBACK PROCESSED OUTCOME]:", JSON.stringify(result));
+
+    // Unmatched or ambiguous events are safely parked in delivery_events for retry by the reconciler.
+    // Always return HTTP 200 so the gateway does not hammer the server with retries.
+    return NextResponse.json({
+      success: true,
+      ok: true,
+      outcome: result.outcome,
+      messageId: result.messageId,
+    });
+  } catch (err: unknown) {
+    const errorMsg = err instanceof Error ? err.message : "Internal callback processing error";
+    console.error("[CALLBACK ERROR]:", errorMsg);
+    // Return 500 on database failure so the gateway retries later
+    return NextResponse.json({ success: false, ok: false, error: errorMsg }, { status: 500 });
   }
-
-  if (!status) {
-    if (rawText.toUpperCase().includes("DELIV")) {
-      status = "DELIVRD";
-    } else if (rawText.toUpperCase().includes("EXPIR") || rawText.toUpperCase().includes("UNDELIV") || rawText.toUpperCase().includes("REJECT")) {
-      status = "FAILED";
-    } else {
-      status = "UNKNOWN";
-    }
-  }
-
-  const statusCode = lookup(["status_code", "statusCode", "code"]) || (rawText.includes("1707") ? "1707" : undefined);
-  const description =
-    lookup(["description", "desc", "reason", "error"]) ||
-    (rawText.includes("1707") ? "Invalid Source / Sender ID not approved on account" : undefined);
-
-  let recipient: string | undefined = lookup([
-    "to",
-    "destination",
-    "recipient",
-    "msisdn",
-    "phone",
-    "number",
-    "mobile",
-  ]);
-
-  if (!recipient) {
-    recipient = undefined;
-  }
-
-  // Fallback ID if message_id was omitted but recipient was provided
-  if (!messageId && recipient) {
-    messageId = `DLR-${Date.now()}`;
-  }
-
-  if (!messageId && !recipient) {
-    console.warn("[CALLBACK WARNING]: Missing both message_id and recipient in callback:", rawText);
-    return {
-      success: false,
-      error: "Missing message_id and recipient in callback payload",
-    };
-  }
-
-  const updated = await updateMessageDelivery({
-    messageId,
-    status,
-    statusCode,
-    description,
-    recipient,
-    rawPayload: rawText,
-  });
-
-  console.log(`[CALLBACK UPDATED]: Message ${messageId} -> ${status} (updated: ${updated})`);
-  return { success: true, updated, messageId, status };
 }
 
 export async function POST(req: NextRequest) {
+  const contentType = req.headers.get("content-type") || "";
+  let payload: Record<string, unknown> = {};
+  let rawText = "";
+
   try {
-    const rawText = await req.text();
-    let data: Record<string, unknown> = {};
+    rawText = (await req.text()).trim();
 
-    // 1. Merge any query parameters from URL
-    req.nextUrl.searchParams.forEach((val, key) => {
-      data[key] = val;
-    });
-
-    // 2. Parse body (JSON or Form URL Encoded)
-    try {
-      const parsed = JSON.parse(rawText);
-      if (typeof parsed === "object" && parsed !== null) {
-        data = { ...data, ...parsed };
+    if (contentType.includes("application/json")) {
+      payload = JSON.parse(rawText);
+    } else if (contentType.includes("application/x-www-form-urlencoded")) {
+      payload = Object.fromEntries(new URLSearchParams(rawText));
+    } else if (rawText.startsWith("{") && rawText.endsWith("}")) {
+      payload = JSON.parse(rawText);
+    } else if (rawText.includes("|")) {
+      // Handle legacy pipe-separated format (e.g. 1701|phone|job_id)
+      const parts = rawText.split("|").map((p) => p.trim());
+      if (parts.length >= 3) {
+        payload = { status: parts[0], recipient: parts[1], message_id: parts[2] };
+      } else if (parts.length === 2) {
+        payload = { status: parts[0], message_id: parts[1] };
       }
-    } catch {
-      // If sent as form-urlencoded
-      const params = new URLSearchParams(rawText);
-      params.forEach((val, key) => {
-        data[key] = val;
-      });
+    } else {
+      payload = Object.fromEntries(new URL(req.url).searchParams);
     }
-
-    const result = await processCallbackPayload(data, rawText);
-    return NextResponse.json(result, { status: 200 });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Error handling callback";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+  } catch {
+    payload = Object.fromEntries(new URL(req.url).searchParams);
   }
+
+  return handleCallback(req, payload, rawText);
 }
 
+// Some gateways dispatch delivery receipts as GET requests with query parameters
 export async function GET(req: NextRequest) {
-  try {
-    const data: Record<string, unknown> = {};
-    req.nextUrl.searchParams.forEach((val, key) => {
-      data[key] = val;
-    });
-
-    const result = await processCallbackPayload(data, req.url);
-    return NextResponse.json(result, { status: 200 });
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "Error handling callback";
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
-  }
+  const url = new URL(req.url);
+  const params = Object.fromEntries(url.searchParams);
+  return handleCallback(req, params, url.search);
 }
