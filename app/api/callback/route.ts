@@ -23,6 +23,9 @@ async function processCallbackPayload(data: Record<string, unknown>, rawText: st
   };
 
   let messageId = lookup([
+    "job_id",
+    "jobId",
+    "job",
     "message_id",
     "messageId",
     "msg_id",

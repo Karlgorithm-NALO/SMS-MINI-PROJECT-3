@@ -200,37 +200,61 @@ export async function sendNaloSms(params: {
   // We send each number (or batch if single request) to ensure individual tracking and message_id
   for (const recipient of validNumbers) {
     try {
-      const url = new URL(endpointUrl);
-      url.searchParams.set("key", apiKey);
-      url.searchParams.set("type", "0"); // standard text message
-      url.searchParams.set("dlr", "1"); // request delivery report
-      url.searchParams.set("destination", recipient);
-      url.searchParams.set("source", params.senderId.trim());
-      url.searchParams.set("message", params.message);
+      // Construct secure POST payload (keeps API key, phone, and message out of URL query strings)
+      const postPayload: Record<string, unknown> = {
+        key: apiKey,
+        msisdn: recipient,
+        destination: recipient,
+        sender_id: params.senderId.trim(),
+        source: params.senderId.trim(),
+        message: params.message,
+        type: "0",
+        dlr: "1",
+      };
 
       if (callbackUrl) {
-        url.searchParams.set("callback_url", callbackUrl);
+        postPayload.callback_url = callbackUrl;
       }
 
-      console.log(`[DISPATCHING SMS via NALO]: destination=${recipient}, source=${params.senderId.trim()}, callback_url=${callbackUrl || "none"}`);
+      console.log(`[DISPATCHING SMS via NALO POST]: destination=${recipient}, source=${params.senderId.trim()}, callback_url=${callbackUrl || "none"}`);
 
-      const response = await fetch(url.toString(), {
-        method: "GET",
+      const response = await fetch(endpointUrl, {
+        method: "POST",
         headers: {
-          Accept: "text/plain, application/json",
+          "Content-Type": "application/json",
+          Accept: "application/json, text/plain",
         },
+        body: JSON.stringify(postPayload),
       });
 
       const responseText = (await response.text()).trim();
-      const parts = responseText.split("|").map((p) => p.trim());
-      const statusCode = parts[0];
+      let statusCode = "";
+      let messageId: string | undefined;
+      let errorDesc: string | undefined;
+
+      // 1. Parse JSON response (standard Nalo POST JSON format: {"status":"1701","job_id":"..."})
+      try {
+        const json = JSON.parse(responseText);
+        statusCode = String(json.status || json.code || "").trim();
+        messageId = json.job_id || json.message_id || json.id || json.mid;
+        if (json.message && statusCode !== "1701") {
+          errorDesc = json.message;
+        }
+      } catch {
+        // 2. Fallback: Parse pipe-delimited text if gateway returns text format (1701|phone|mid)
+        const parts = responseText.split("|").map((p) => p.trim());
+        statusCode = parts[0];
+        if (parts.length >= 3) {
+          messageId = parts[2];
+        } else if (parts.length >= 2) {
+          messageId = parts[1];
+        }
+      }
 
       if (statusCode === "1701") {
-        // Success: 1701|<phone>|<message_id> or 1701|<message_id>
-        const messageId =
-          parts.length >= 3
-            ? parts[2]
-            : parts[1] || `NALO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        if (!messageId) {
+          messageId = `NALO-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+        }
 
         if (!primaryMessageId) primaryMessageId = messageId;
         overallSuccess = true;
@@ -260,8 +284,10 @@ export async function sendNaloSms(params: {
           statusCode: "1701",
         });
       } else {
-        const errorDesc =
-          NALO_ERROR_MAP[statusCode] || `Gateway error code ${statusCode}: ${responseText}`;
+        const finalError =
+          errorDesc ||
+          NALO_ERROR_MAP[statusCode] ||
+          `Gateway error code ${statusCode}: ${responseText}`;
 
         const fallbackMsgId = `ERR-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
         await saveSentMessage({
@@ -271,7 +297,7 @@ export async function sendNaloSms(params: {
           message: params.message,
           status: "FAILED",
           statusCode,
-          errorMessage: errorDesc,
+          errorMessage: finalError,
           rawResponse: responseText,
         });
 
@@ -279,7 +305,7 @@ export async function sendNaloSms(params: {
           recipient,
           success: false,
           statusCode,
-          error: errorDesc,
+          error: finalError,
         });
       }
     } catch (err: unknown) {

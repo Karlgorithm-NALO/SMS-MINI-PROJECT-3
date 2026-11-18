@@ -57,14 +57,23 @@ export default function MessageHistory({ refreshTrigger }: Props) {
   }, [refreshTrigger]);
 
   // Requirement 5: Polling every few seconds without manual refresh
+  // Smart Adaptive Polling:
+  // When messages are actively pending carrier DLR (SUBMITTED/PENDING), poll rapidly (every 1000ms)
+  // Once all messages reach a terminal state (DELIVRD/FAILED), relax polling to 4000ms
   useEffect(() => {
     if (!autoPoll) return;
+    const hasPending = messages.some((m) => {
+      const s = m.status.toUpperCase();
+      return s.includes("SUBMIT") || s.includes("PEND") || s === "SENT";
+    });
+
+    const pollIntervalMs = hasPending ? 1000 : 4000;
     const interval = setInterval(() => {
       fetchMessages(false);
-    }, 3500); // Poll every 3.5 seconds
+    }, pollIntervalMs);
 
     return () => clearInterval(interval);
-  }, [autoPoll]);
+  }, [autoPoll, messages]);
 
   function copyText(text: string) {
     navigator.clipboard.writeText(text);
