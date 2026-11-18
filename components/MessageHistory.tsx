@@ -648,72 +648,65 @@ export default function MessageHistory({ refreshTrigger }: Props) {
               const carrier = detectCarrier(msg.recipient);
 
               return (
-                <div key={msg.id} className="p-3.5 hover:bg-canvas/40 transition-colors">
-                  {/* Top: Status Badge + Sent Time + Telco Recipient */}
+                <div key={msg.id} className="p-4 hover:bg-canvas/40 transition-colors">
+                  {/* Row 1: Telco Badge & Recipient Number (Left) + Sent Time (Right) */}
                   <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      {getStatusBadge(msg.status)}
-                      <span className="text-[10px] text-ink-faint">
-                        {formatDate(msg.sent_at)}
-                      </span>
-                    </div>
-
                     <div className="flex items-center gap-1.5 font-mono text-xs">
-                      <TelcoLogo carrier={carrier.name} className="h-3.5 w-3.5" />
+                      <TelcoLogo carrier={carrier.name} className="h-4 w-4" />
                       <span
-                        className={`rounded px-1 py-0.2 text-[9px] font-bold font-sans ${carrier.badge}`}
+                        className={`rounded px-1.5 py-0.2 text-[9px] font-bold font-sans ${carrier.badge}`}
                       >
                         {carrier.name}
                       </span>
-                      <span className="font-semibold text-ink">
+                      <span className="font-bold text-ink text-sm">
                         {formatPhoneNumber(msg.recipient)}
                       </span>
                     </div>
+
+                    <span className="text-[10px] text-ink-faint font-mono shrink-0">
+                      {formatDate(msg.sent_at)}
+                    </span>
                   </div>
 
-                  {/* Middle: Message snippet in clean chat bubble */}
-                  <div className="mt-2.5 rounded-xl bg-canvas/60 p-2.5 text-xs text-ink-body font-sans leading-relaxed border border-ink/[0.04]">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="rounded bg-chip px-1.5 py-0.2 text-[10px] font-semibold text-ink-soft">
-                        From: {msg.sender_id}
-                      </span>
+                  {/* Row 2: Status Badge (Left) + Latency / Sender Chip (Right) */}
+                  <div className="mt-2 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(msg.status)}
                       {msg.status === "DELIVRD" && msg.delivered_at && (
-                        <span className="text-[10px] font-semibold text-success-fg flex items-center gap-1">
-                          <span>Delivered</span>
+                        <span className="text-[10px] font-bold text-success-fg bg-success-bg px-1.5 py-0.5 rounded">
                           {(() => {
                             try {
                               const diffSec = Math.round(
                                 (new Date(msg.delivered_at).getTime() - new Date(msg.sent_at).getTime()) / 1000
                               );
                               if (diffSec >= 0 && diffSec < 3600) {
-                                return (
-                                  <span className="rounded bg-success-bg px-1 py-0.2 text-[9px] font-bold">
-                                    +{diffSec}s
-                                  </span>
-                                );
+                                return `+${diffSec}s DLR`;
                               }
                             } catch {}
-                            return null;
+                            return "Delivered";
                           })()}
                         </span>
                       )}
                       {msg.status === "FAILED" && (
-                        <span className="text-[10px] font-semibold text-danger-fg">
+                        <span className="text-[10px] font-semibold text-danger-fg bg-danger-bg px-1.5 py-0.5 rounded">
                           Failed / Expired
                         </span>
                       )}
-                      {msg.status !== "DELIVRD" && msg.status !== "FAILED" && (
-                        <span className="text-[10px] italic text-ink-faint">
-                          Awaiting callback
-                        </span>
-                      )}
                     </div>
-                    <p className="line-clamp-2 text-ink">{msg.message}</p>
+
+                    <span className="rounded bg-chip px-2 py-0.5 text-[10px] font-semibold text-ink-soft shrink-0">
+                      From: {msg.sender_id}
+                    </span>
                   </div>
 
-                  {/* Footer: Message ID (copyable) + Action Button */}
-                  <div className="mt-2.5 flex items-center justify-between text-xs">
-                    <div className="flex items-center gap-1 font-mono text-[11px] text-ink-soft truncate max-w-[160px]">
+                  {/* Row 3: Message snippet in clean chat bubble */}
+                  <div className="mt-2 rounded-xl bg-canvas/60 p-3 text-xs text-ink-body font-sans leading-relaxed border border-ink/[0.04]">
+                    <p className="line-clamp-3 text-ink">{msg.message}</p>
+                  </div>
+
+                  {/* Row 4: Message ID (copyable) + Action Button */}
+                  <div className="mt-2.5 flex items-center justify-between text-xs pt-1">
+                    <div className="flex items-center gap-1 font-mono text-[11px] text-ink-soft truncate max-w-[180px]">
                       <span className="truncate">{msg.message_id}</span>
                       <button
                         type="button"
