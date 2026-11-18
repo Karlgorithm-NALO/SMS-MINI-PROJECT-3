@@ -414,7 +414,7 @@ export async function updateMessageDelivery(data: {
            status_code = COALESCE($2, status_code),
            delivered_at = $3,
            raw_callback = $4,
-           error_message = COALESCE($6, error_message)
+           error_message = CASE WHEN $1 = 'DELIVRD' THEN null ELSE COALESCE($6, error_message) END
        WHERE message_id = $5`,
       [
         normalizedStatus,
@@ -438,7 +438,7 @@ export async function updateMessageDelivery(data: {
              status_code = COALESCE($2, status_code),
              delivered_at = $3,
              raw_callback = $4,
-             error_message = COALESCE($6, error_message)
+             error_message = CASE WHEN $1 = 'DELIVRD' THEN null ELSE COALESCE($6, error_message) END
          WHERE id = (
            SELECT id FROM messages
            WHERE recipient LIKE '%' || $5
@@ -486,7 +486,7 @@ export async function updateMessageDelivery(data: {
         status_code = COALESCE(?, status_code),
         delivered_at = ?,
         raw_callback = ?,
-        error_message = COALESCE(?, error_message)
+        error_message = CASE WHEN ? = 'DELIVRD' THEN NULL ELSE COALESCE(?, error_message) END
     WHERE message_id = ?
   `);
 
@@ -495,6 +495,7 @@ export async function updateMessageDelivery(data: {
     data.statusCode ?? null,
     deliveredAt,
     data.rawPayload ?? null,
+    normalizedStatus,
     data.description ?? (normalizedStatus === "FAILED" ? "Carrier Error 201: Message undelivered / expired" : null),
     data.messageId
   );
@@ -510,7 +511,7 @@ export async function updateMessageDelivery(data: {
           status_code = COALESCE(?, status_code),
           delivered_at = ?,
           raw_callback = ?,
-          error_message = COALESCE(?, error_message)
+          error_message = CASE WHEN ? = 'DELIVRD' THEN NULL ELSE COALESCE(?, error_message) END
       WHERE id = (
         SELECT id FROM messages
         WHERE recipient LIKE '%' || ?
@@ -524,6 +525,7 @@ export async function updateMessageDelivery(data: {
       data.statusCode ?? null,
       deliveredAt,
       data.rawPayload ?? null,
+      normalizedStatus,
       data.description ?? (normalizedStatus === "FAILED" ? "Carrier Error 201: Message undelivered / expired" : null),
       searchPattern,
       normalizedStatus
