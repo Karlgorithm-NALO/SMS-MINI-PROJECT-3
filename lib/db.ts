@@ -163,9 +163,9 @@ async function seedPgIfEmpty(pool: Pool) {
             `INSERT INTO messages (
               message_id, sender_id, recipient, message, status, status_code, error_message, sent_at, delivered_at, raw_response, raw_callback
             )
-            SELECT $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+            SELECT $1::varchar, $2::varchar, $3::varchar, $4, $5::varchar, $6::varchar, $7, $8::varchar, $9::varchar, $10, $11
             WHERE NOT EXISTS (
-              SELECT 1 FROM messages WHERE message_id = $1
+              SELECT 1 FROM messages WHERE message_id = $1::varchar
             )`,
             [
               m.message_id,
