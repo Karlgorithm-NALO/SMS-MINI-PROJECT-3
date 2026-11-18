@@ -351,13 +351,23 @@ export async function updateMessageDelivery(data: {
   const upper = data.status.toUpperCase();
   if (upper.includes("DELIV")) {
     normalizedStatus = "DELIVRD";
-  } else if (upper.includes("FAIL") || upper.includes("UNDELIV") || upper.includes("REJECT")) {
+  } else if (
+    upper.includes("FAIL") ||
+    upper.includes("UNDELIV") ||
+    upper.includes("REJECT") ||
+    upper.includes("EXPIR") ||
+    upper.includes("DELET") ||
+    upper.includes("UNKNOWN")
+  ) {
     normalizedStatus = "FAILED";
   } else if (upper.includes("PEND") || upper.includes("QUEUE")) {
     normalizedStatus = "PENDING";
   } else {
     normalizedStatus = "SENT";
   }
+
+  // Only store delivered_at timestamp if the message was actually DELIVRD
+  const deliveredAt = normalizedStatus === "DELIVRD" ? receivedAt : null;
 
   if (isPostgres()) {
     const pool = await initPg();
@@ -386,7 +396,7 @@ export async function updateMessageDelivery(data: {
       [
         normalizedStatus,
         data.statusCode ?? null,
-        receivedAt,
+        deliveredAt,
         data.rawPayload ?? null,
         data.messageId,
       ]
@@ -414,7 +424,7 @@ export async function updateMessageDelivery(data: {
         [
           normalizedStatus,
           data.statusCode ?? null,
-          receivedAt,
+          deliveredAt,
           data.rawPayload ?? null,
           searchPattern,
         ]
@@ -456,7 +466,7 @@ export async function updateMessageDelivery(data: {
   let result = update.run(
     normalizedStatus,
     data.statusCode ?? null,
-    receivedAt,
+    deliveredAt,
     data.rawPayload ?? null,
     data.messageId
   );
@@ -483,7 +493,7 @@ export async function updateMessageDelivery(data: {
     result = fallbackUpdate.run(
       normalizedStatus,
       data.statusCode ?? null,
-      receivedAt,
+      deliveredAt,
       data.rawPayload ?? null,
       searchPattern
     );
@@ -555,8 +565,17 @@ export async function getMessageStats(): Promise<{
     total += c;
     const s = String(row.status || "").toUpperCase();
     if (s.includes("DELIV")) delivered += c;
-    else if (s.includes("FAIL") || s.includes("UNDELIV") || s.includes("REJECT")) failed += c;
-    else pending += c; // SUBMITTED, SENT, PENDING
+    else if (
+      s.includes("FAIL") ||
+      s.includes("UNDELIV") ||
+      s.includes("REJECT") ||
+      s.includes("EXPIR") ||
+      s.includes("DELET")
+    ) {
+      failed += c;
+    } else {
+      pending += c; // SUBMITTED, SENT, PENDING
+    }
   }
 
   return { total, delivered, pending, failed };

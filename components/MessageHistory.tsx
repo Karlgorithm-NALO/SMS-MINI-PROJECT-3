@@ -88,7 +88,14 @@ export default function MessageHistory({ refreshTrigger }: Props) {
     for (const msg of messages) {
       const s = msg.status.toUpperCase();
       if (s.includes("DELIV")) delivered++;
-      else if (s.includes("FAIL") || s.includes("UNDELIV") || s.includes("REJECT")) failed++;
+      else if (
+        s.includes("FAIL") ||
+        s.includes("UNDELIV") ||
+        s.includes("REJECT") ||
+        s.includes("EXPIR") ||
+        s.includes("DELET")
+      )
+        failed++;
       else pending++;
     }
     return {
@@ -132,14 +139,18 @@ export default function MessageHistory({ refreshTrigger }: Props) {
       filter === "FAILED" &&
       !msg.status.toUpperCase().includes("FAIL") &&
       !msg.status.toUpperCase().includes("UNDELIV") &&
-      !msg.status.toUpperCase().includes("REJECT")
+      !msg.status.toUpperCase().includes("REJECT") &&
+      !msg.status.toUpperCase().includes("EXPIR") &&
+      !msg.status.toUpperCase().includes("DELET")
     )
       return false;
     if (
       filter === "PENDING" &&
       (msg.status.toUpperCase().includes("DELIV") ||
         msg.status.toUpperCase().includes("FAIL") ||
-        msg.status.toUpperCase().includes("UNDELIV"))
+        msg.status.toUpperCase().includes("UNDELIV") ||
+        msg.status.toUpperCase().includes("EXPIR") ||
+        msg.status.toUpperCase().includes("DELET"))
     )
       return false;
 
@@ -166,7 +177,13 @@ export default function MessageHistory({ refreshTrigger }: Props) {
         </span>
       );
     }
-    if (s.includes("FAIL") || s.includes("UNDELIV") || s.includes("REJECT")) {
+    if (
+      s.includes("FAIL") ||
+      s.includes("UNDELIV") ||
+      s.includes("REJECT") ||
+      s.includes("EXPIR") ||
+      s.includes("DELET")
+    ) {
       return (
         <span className="inline-flex items-center gap-1.5 rounded-full border border-danger/30 bg-danger-bg px-2.5 py-0.5 text-xs font-semibold text-danger-fg">
           <XCircleIcon className="h-3.5 w-3.5" />
@@ -457,7 +474,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                     </td>
 
                     <td className="py-2.5 px-2.5 whitespace-nowrap text-[11px]">
-                      {msg.delivered_at ? (
+                      {msg.status === "DELIVRD" && msg.delivered_at ? (
                         <div className="flex items-center gap-1">
                           <span className="text-success-fg font-medium">
                             {formatDate(msg.delivered_at)}
@@ -478,6 +495,10 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                             return null;
                           })()}
                         </div>
+                      ) : msg.status === "FAILED" ? (
+                        <span className="text-danger-fg text-[11px] font-medium">
+                          Failed / Expired
+                        </span>
                       ) : (
                         <span className="text-ink-faint italic text-[11px]">Awaiting callback</span>
                       )}

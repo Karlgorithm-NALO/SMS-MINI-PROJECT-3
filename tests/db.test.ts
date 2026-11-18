@@ -77,6 +77,34 @@ test("updates delivery status by recipient fallback when gateway mid differs", a
   assert.equal(found.status, "DELIVRD");
 });
 
+test("normalizes EXPIRED or FAILED callbacks to FAILED and keeps delivered_at null", async () => {
+  await saveSentMessage({
+    messageId: "DUMMY-MSG-555",
+    senderId: "HappyTest",
+    recipient: "233590000000",
+    message: "Dummy probe",
+    status: "SUBMITTED",
+    statusCode: "1701",
+  });
+
+  const updated = await updateMessageDelivery({
+    messageId: "DUMMY-MSG-555",
+    status: "EXPIRED",
+    statusCode: "201",
+    description: "Message expired before delivery",
+    recipient: "233590000000",
+    rawPayload: JSON.stringify({ status: "EXPIRED", status_code: "201" }),
+  });
+
+  assert.equal(updated, true);
+
+  const list = await getAllMessages(10);
+  const found = list.find((m) => m.message_id === "DUMMY-MSG-555");
+  assert.ok(found);
+  assert.equal(found.status, "FAILED");
+  assert.equal(found.delivered_at, null, "Failed or expired message must not have delivered_at set");
+});
+
 test("computes message delivery statistics correctly", async () => {
   const stats = await getMessageStats();
   assert.ok(stats.total >= 1);
