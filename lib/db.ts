@@ -442,7 +442,7 @@ export async function updateMessageDelivery(data: {
          WHERE id = (
            SELECT id FROM messages
            WHERE recipient LIKE '%' || $5
-             AND status IN ('SUBMITTED', 'SENT', 'PENDING')
+             AND (status IN ('SUBMITTED', 'SENT', 'PENDING') OR $1 = 'DELIVRD')
            ORDER BY id DESC
            LIMIT 1
          )`,
@@ -514,7 +514,7 @@ export async function updateMessageDelivery(data: {
       WHERE id = (
         SELECT id FROM messages
         WHERE recipient LIKE '%' || ?
-          AND status IN ('SUBMITTED', 'SENT', 'PENDING')
+          AND (status IN ('SUBMITTED', 'SENT', 'PENDING') OR ? = 'DELIVRD')
         ORDER BY id DESC
         LIMIT 1
       )
@@ -525,7 +525,8 @@ export async function updateMessageDelivery(data: {
       deliveredAt,
       data.rawPayload ?? null,
       data.description ?? (normalizedStatus === "FAILED" ? "Carrier Error 201: Message undelivered / expired" : null),
-      searchPattern
+      searchPattern,
+      normalizedStatus
     );
   }
 
