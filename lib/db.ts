@@ -32,15 +32,30 @@ async function initPg(): Promise<Pool> {
   if (pgPool && pgInitialized) return pgPool;
 
   const connectionString = process.env.DATABASE_URL?.trim();
+  if (!connectionString) {
+    throw new Error("initPg called but DATABASE_URL is not set");
+  }
+
   if (!pgPool) {
+    const isCloud =
+      connectionString.includes("sslmode=require") ||
+      connectionString.includes("render.com") ||
+      connectionString.includes("neon.tech") ||
+      connectionString.includes("supabase.co") ||
+      connectionString.includes("pooler.supabase.com") ||
+      connectionString.includes("railway.app") ||
+      connectionString.includes("aivencloud") ||
+      (process.env.NODE_ENV === "production" &&
+        !connectionString.includes("localhost") &&
+        !connectionString.includes("@db:") &&
+        !connectionString.includes("127.0.0.1"));
+
+    const isSslDisabled = connectionString.includes("sslmode=disable");
+
     pgPool = new Pool({
       connectionString,
-      ssl:
-        connectionString?.includes("sslmode=require") ||
-        connectionString?.includes("render.com") ||
-        connectionString?.includes("neon.tech")
-          ? { rejectUnauthorized: false }
-          : undefined,
+      ssl: isCloud && !isSslDisabled ? { rejectUnauthorized: false } : undefined,
+      connectionTimeoutMillis: 10000,
     });
   }
 

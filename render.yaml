@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: sms-mini-project-3
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: nalo-sms-db
+          property: connectionString
+      - key: SENDER_IDS
+        value: HappyTest
+      - key: PORT
+        value: 3000
+      - key: INITIAL_SMS_BALANCE_GHS
+        value: "9.744"
+      - key: SMS_RATE_GHS
+        value: "0.032"
+
+databases:
+  - name: nalo-sms-db
+    plan: free
+    databaseName: nalosms
+    user: nalo
