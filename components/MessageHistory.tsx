@@ -268,7 +268,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
 
       {/* Filter and Search Bar */}
       <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-1 rounded-2xl bg-canvas p-1 text-xs font-semibold">
+        <div className="flex items-center gap-1 rounded-2xl bg-canvas p-1 text-xs font-semibold overflow-x-auto no-scrollbar max-w-full">
           {(["ALL", "DELIVERED", "PENDING", "FAILED"] as const).map((tab) => {
             const count = counts[tab];
             return (
@@ -276,7 +276,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
                 key={tab}
                 type="button"
                 onClick={() => setFilter(tab)}
-                className={`inline-flex items-center gap-1.5 rounded-xl px-3 py-1.5 transition-all ${
+                className={`inline-flex items-center gap-1.5 rounded-xl px-2.5 sm:px-3 py-1.5 transition-all shrink-0 ${
                   filter === tab
                     ? "bg-white text-ink shadow-sm"
                     : "text-ink-soft hover:text-ink"
@@ -309,20 +309,20 @@ export default function MessageHistory({ refreshTrigger }: Props) {
             placeholder="Search number, ID, or text..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full rounded-xl border border-ink/[0.1] bg-canvas/60 px-3.5 py-1.5 text-xs text-ink placeholder:text-ink-faint focus:border-accent focus:bg-white focus:outline-none"
+            className="w-full rounded-xl border border-ink/[0.1] bg-canvas/60 px-3.5 py-2 sm:py-1.5 text-xs text-ink placeholder:text-ink-faint focus:border-accent focus:bg-white focus:outline-none"
           />
         </div>
       </div>
 
       {/* Telco Network Filter Pills */}
-      <div className="mt-3 flex items-center gap-1.5 flex-wrap text-xs">
-        <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider mr-1">
+      <div className="mt-3 flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 text-xs">
+        <span className="text-[11px] font-bold text-ink-soft uppercase tracking-wider mr-1 shrink-0">
           Filter by Telco:
         </span>
         <button
           type="button"
           onClick={() => setTelcoFilter("ALL")}
-          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold transition-all ${
+          className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-semibold transition-all shrink-0 ${
             telcoFilter === "ALL"
               ? "bg-ink text-white shadow-xs"
               : "bg-canvas text-ink-soft hover:bg-chip hover:text-ink"
@@ -334,7 +334,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
         <button
           type="button"
           onClick={() => setTelcoFilter("MTN")}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all ${
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all shrink-0 ${
             telcoFilter === "MTN"
               ? "border-amber-400 bg-[#FFCC00] text-[#001C38] font-bold shadow-xs ring-2 ring-amber-300/60"
               : "border-amber-200/80 bg-amber-50/80 text-amber-950 hover:bg-amber-100"
@@ -347,7 +347,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
         <button
           type="button"
           onClick={() => setTelcoFilter("Telecel")}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all ${
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all shrink-0 ${
             telcoFilter === "Telecel"
               ? "border-rose-400 bg-[#E60000] text-white font-bold shadow-xs ring-2 ring-rose-300/60"
               : "border-rose-200/80 bg-rose-50/80 text-rose-950 hover:bg-rose-100"
@@ -360,7 +360,7 @@ export default function MessageHistory({ refreshTrigger }: Props) {
         <button
           type="button"
           onClick={() => setTelcoFilter("AT")}
-          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all ${
+          className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-semibold transition-all shrink-0 ${
             telcoFilter === "AT"
               ? "border-blue-400 bg-[#005BA6] text-white font-bold shadow-xs ring-2 ring-blue-300/60"
               : "border-blue-200/80 bg-blue-50/80 text-blue-950 hover:bg-blue-100"
@@ -394,20 +394,21 @@ export default function MessageHistory({ refreshTrigger }: Props) {
             </p>
           </div>
         ) : (
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-ink/[0.08] bg-canvas/60 text-[10px] font-bold uppercase tracking-wider text-ink-soft">
-                <th className="py-2.5 pl-3 pr-2">Status</th>
-                <th className="py-2.5 px-2.5">Message ID</th>
-                <th className="py-2.5 px-2.5">Sender</th>
-                <th className="py-2.5 px-2.5">Recipient</th>
-                <th className="py-2.5 px-2.5">Message Snippet</th>
-                <th className="py-2.5 px-2.5">Sent</th>
-                <th className="py-2.5 px-2.5">Delivered (DLR)</th>
-                <th className="py-2.5 pr-3 text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-ink/[0.04]">
+          <>
+            <table className="hidden md:table w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-ink/[0.08] bg-canvas/60 text-[10px] font-bold uppercase tracking-wider text-ink-soft">
+                  <th className="py-2.5 pl-3 pr-2">Status</th>
+                  <th className="py-2.5 px-2.5">Message ID</th>
+                  <th className="py-2.5 px-2.5">Sender</th>
+                  <th className="py-2.5 px-2.5">Recipient</th>
+                  <th className="py-2.5 px-2.5">Message Snippet</th>
+                  <th className="py-2.5 px-2.5">Sent</th>
+                  <th className="py-2.5 px-2.5">Delivered (DLR)</th>
+                  <th className="py-2.5 pr-3 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-ink/[0.04]">
               {filteredMessages.map((msg) => {
                 const isExpanded = expandedId === msg.id;
 
@@ -639,6 +640,176 @@ export default function MessageHistory({ refreshTrigger }: Props) {
               })}
             </tbody>
           </table>
+
+          {/* Mobile Touch-Optimized Message Cards (md:hidden) */}
+          <div className="md:hidden divide-y divide-ink/[0.06]">
+            {filteredMessages.map((msg) => {
+              const isExpanded = expandedId === msg.id;
+              const carrier = detectCarrier(msg.recipient);
+
+              return (
+                <div key={msg.id} className="p-3.5 hover:bg-canvas/40 transition-colors">
+                  {/* Top: Status Badge + Sent Time + Telco Recipient */}
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      {getStatusBadge(msg.status)}
+                      <span className="text-[10px] text-ink-faint">
+                        {formatDate(msg.sent_at)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 font-mono text-xs">
+                      <TelcoLogo carrier={carrier.name} className="h-3.5 w-3.5" />
+                      <span
+                        className={`rounded px-1 py-0.2 text-[9px] font-bold font-sans ${carrier.badge}`}
+                      >
+                        {carrier.name}
+                      </span>
+                      <span className="font-semibold text-ink">
+                        {formatPhoneNumber(msg.recipient)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Middle: Message snippet in clean chat bubble */}
+                  <div className="mt-2.5 rounded-xl bg-canvas/60 p-2.5 text-xs text-ink-body font-sans leading-relaxed border border-ink/[0.04]">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="rounded bg-chip px-1.5 py-0.2 text-[10px] font-semibold text-ink-soft">
+                        From: {msg.sender_id}
+                      </span>
+                      {msg.status === "DELIVRD" && msg.delivered_at && (
+                        <span className="text-[10px] font-semibold text-success-fg flex items-center gap-1">
+                          <span>Delivered</span>
+                          {(() => {
+                            try {
+                              const diffSec = Math.round(
+                                (new Date(msg.delivered_at).getTime() - new Date(msg.sent_at).getTime()) / 1000
+                              );
+                              if (diffSec >= 0 && diffSec < 3600) {
+                                return (
+                                  <span className="rounded bg-success-bg px-1 py-0.2 text-[9px] font-bold">
+                                    +{diffSec}s
+                                  </span>
+                                );
+                              }
+                            } catch {}
+                            return null;
+                          })()}
+                        </span>
+                      )}
+                      {msg.status === "FAILED" && (
+                        <span className="text-[10px] font-semibold text-danger-fg">
+                          Failed / Expired
+                        </span>
+                      )}
+                      {msg.status !== "DELIVRD" && msg.status !== "FAILED" && (
+                        <span className="text-[10px] italic text-ink-faint">
+                          Awaiting callback
+                        </span>
+                      )}
+                    </div>
+                    <p className="line-clamp-2 text-ink">{msg.message}</p>
+                  </div>
+
+                  {/* Footer: Message ID (copyable) + Action Button */}
+                  <div className="mt-2.5 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-1 font-mono text-[11px] text-ink-soft truncate max-w-[160px]">
+                      <span className="truncate">{msg.message_id}</span>
+                      <button
+                        type="button"
+                        onClick={() => copyText(msg.message_id)}
+                        className="p-1 hover:text-accent"
+                        title="Copy ID"
+                      >
+                        <CopyIcon className="h-3 w-3" />
+                      </button>
+                      {copiedId === msg.message_id && (
+                        <span className="text-[9px] text-accent font-bold">Copied</span>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={() => setExpandedId(isExpanded ? null : msg.id)}
+                      className={`rounded-lg px-3 py-1 text-xs font-semibold transition-all ${
+                        isExpanded
+                          ? "bg-accent text-white shadow-xs"
+                          : "text-accent bg-accent-wash hover:bg-accent/20"
+                      }`}
+                    >
+                      {isExpanded ? "Hide Details" : "Inspect"}
+                    </button>
+                  </div>
+
+                  {/* Mobile Inline Audit Details */}
+                  {isExpanded && (
+                    <div className="mt-3 rounded-xl border border-ink/[0.08] bg-canvas/40 p-3 text-xs space-y-3 motion-safe:animate-fade-in">
+                      <div className="flex items-center justify-between border-b border-ink/[0.06] pb-2 font-bold text-ink">
+                        <span className="font-mono text-accent text-[11px] truncate mr-2">
+                          Audit: {msg.message_id}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedId(null)}
+                          className="text-ink-soft hover:text-ink text-xs font-bold"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-ink-soft text-[11px]">Full Message:</span>
+                          <button
+                            type="button"
+                            onClick={() => copyText(msg.message)}
+                            className="text-[10px] text-accent font-semibold flex items-center gap-1"
+                          >
+                            <CopyIcon className="h-3 w-3" />
+                            <span>Copy</span>
+                          </button>
+                        </div>
+                        <div className="rounded-lg bg-white p-2 border border-ink/[0.06] text-ink font-sans whitespace-pre-wrap leading-relaxed text-xs">
+                          {msg.message}
+                        </div>
+                      </div>
+
+                      <div>
+                        <span className="font-semibold text-ink-soft text-[11px]">Gateway Response:</span>
+                        <code className="mt-1 block font-mono text-[10px] text-ink bg-white p-2 rounded-lg border border-ink/[0.06] break-all">
+                          {msg.raw_response || "N/A"}
+                        </code>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-semibold text-ink-soft text-[11px]">Carrier DLR Callback:</span>
+                          {msg.raw_callback && (
+                            <button
+                              type="button"
+                              onClick={() => copyText(msg.raw_callback!)}
+                              className="text-[10px] text-accent font-semibold flex items-center gap-1"
+                            >
+                              <CopyIcon className="h-3 w-3" />
+                              <span>Copy JSON</span>
+                            </button>
+                          )}
+                        </div>
+                        <div className="rounded-lg bg-white p-2 font-mono text-[10px] text-ink border border-ink/[0.06] overflow-x-auto max-h-36">
+                          {msg.raw_callback ? (
+                            <pre className="whitespace-pre-wrap">{msg.raw_callback}</pre>
+                          ) : (
+                            <span className="text-ink-faint italic">Awaiting carrier delivery report from Nalo webhook.</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </>
         )}
       </div>
     </div>

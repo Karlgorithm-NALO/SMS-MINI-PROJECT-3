@@ -311,12 +311,12 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
             <label htmlFor="recipient-numbers" className="block text-xs font-bold uppercase tracking-wider text-ink-soft">
               Recipient Phone Number <span className="text-accent">*</span>
             </label>
-            <div className="flex items-center gap-1.5 flex-wrap">
-              <span className="text-[11px] font-semibold text-ink-faint">Test Numbers:</span>
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1 max-w-full">
+              <span className="text-[11px] font-semibold text-ink-faint shrink-0">Test Numbers:</span>
               <button
                 type="button"
                 onClick={() => handleUseSample("558816150", "Test message from Nalo SMS platform via MTN Ghana.")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50/90 px-2 py-0.5 text-[11px] font-bold text-amber-950 hover:bg-amber-100 hover:border-amber-400 active:scale-95 transition-all shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-amber-300 bg-amber-50/90 px-2 py-0.5 text-[11px] font-bold text-amber-950 hover:bg-amber-100 hover:border-amber-400 active:scale-95 transition-all shadow-xs shrink-0"
                 title="Fill sample MTN number (055 881 6150)"
               >
                 <MtnLogo className="h-3.5 w-3.5" />
@@ -325,7 +325,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               <button
                 type="button"
                 onClick={() => handleUseSample("201234567", "Test message from Nalo SMS platform via Telecel Ghana.")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50/90 px-2 py-0.5 text-[11px] font-bold text-rose-950 hover:bg-rose-100 hover:border-rose-400 active:scale-95 transition-all shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-rose-300 bg-rose-50/90 px-2 py-0.5 text-[11px] font-bold text-rose-950 hover:bg-rose-100 hover:border-rose-400 active:scale-95 transition-all shadow-xs shrink-0"
                 title="Fill sample Telecel number (020 123 4567)"
               >
                 <TelecelLogo className="h-3.5 w-3.5" />
@@ -334,7 +334,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               <button
                 type="button"
                 onClick={() => handleUseSample("271234567", "Test message from Nalo SMS platform via AT Ghana.")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50/90 px-2 py-0.5 text-[11px] font-bold text-blue-950 hover:bg-blue-100 hover:border-blue-400 active:scale-95 transition-all shadow-xs"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-blue-300 bg-blue-50/90 px-2 py-0.5 text-[11px] font-bold text-blue-950 hover:bg-blue-100 hover:border-blue-400 active:scale-95 transition-all shadow-xs shrink-0"
                 title="Fill sample AT number (027 123 4567)"
               >
                 <AtLogo className="h-3.5 w-3.5" />
@@ -346,7 +346,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
           {/* Ghana Flag + +233 Fixed Prefix Phone Input */}
           <div className="relative mt-1.5 flex items-center rounded-2xl border border-ink/[0.12] bg-canvas/40 transition-colors focus-within:border-accent focus-within:bg-white focus-within:ring-2 focus-within:ring-accent/20">
             {/* Country Prefix with Ghana Flag */}
-            <div className="flex select-none items-center gap-2 border-r border-ink/[0.1] px-3.5 py-3 text-sm font-semibold text-ink">
+            <div className="flex select-none items-center gap-1.5 sm:gap-2 border-r border-ink/[0.1] px-2.5 sm:px-3.5 py-3 text-sm font-semibold text-ink">
               <GhanaFlag className="h-4 w-6 shadow-xs rounded-xs" />
               <span className="font-mono font-bold text-ink">+233</span>
             </div>
@@ -369,11 +369,11 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
               placeholder="e.g. 55 881 6150"
               disabled={isSending}
               maxLength={9}
-              className="w-full bg-transparent px-3.5 py-3 font-mono text-sm text-ink placeholder:font-sans placeholder:text-ink-faint focus:outline-none"
+              className="w-full bg-transparent px-2.5 sm:px-3.5 py-3 font-mono text-sm text-ink placeholder:font-sans placeholder:text-ink-faint focus:outline-none"
             />
 
             {/* Right Status: Carrier Badge with Logo, Counter, Add Button */}
-            <div className="flex items-center gap-2 pr-3.5 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 pr-2 sm:pr-3.5 shrink-0">
               {currentCarrier && currentCarrier.name !== "Unknown" && (
                 <div
                   className="inline-flex items-center gap-1.5 rounded-lg border border-ink/[0.08] bg-surface px-2 py-0.5 shadow-xs"
@@ -529,13 +529,13 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
         {/* Live Cost Calculation Preview in Ghana Cedis */}
         {allRecipientNumbers.length > 0 && message.trim().length > 0 && (
           <div
-            className={`flex items-center justify-between flex-wrap gap-2.5 rounded-2xl p-3.5 text-xs transition-colors ${
+            className={`flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 rounded-2xl p-3.5 text-xs transition-colors ${
               isInsufficientBalance
                 ? "border border-danger/30 bg-danger-bg text-danger-fg"
                 : "border border-ink/[0.06] bg-chip/70 text-ink-soft"
             }`}
           >
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span className="font-semibold text-ink">Estimated Cost:</span>
               <span className="font-mono text-sm font-bold text-accent-deep">
                 GH₵ {estimatedCostGhs.toFixed(3)}
@@ -546,7 +546,7 @@ export default function SendSmsForm({ allowedSenderIds, onMessageSent, balance =
             </div>
 
             {balance !== null && (
-              <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1.5 text-xs flex-wrap">
                 <span>Balance after send:</span>
                 <strong
                   className={`font-mono font-bold ${

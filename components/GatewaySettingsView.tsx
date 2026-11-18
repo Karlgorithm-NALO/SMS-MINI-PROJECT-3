@@ -122,23 +122,23 @@ export default function GatewaySettingsView({ config }: Props) {
                 </code>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="font-semibold text-ink-soft">Ping Frequency:</span>
-                <span className="font-mono font-bold text-ink bg-chip px-2.5 py-0.5 rounded-md">
+                <span className="font-mono font-bold text-ink bg-chip px-2.5 py-0.5 rounded-md w-fit">
                   Every 10 minutes (&lt; 15m timeout)
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="font-semibold text-ink-soft">Cloud Automation:</span>
                 <span className="font-semibold text-emerald-700">
                   GitHub Actions (cron: */10 * * * *)
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="font-semibold text-ink-soft">Local Runner Command:</span>
-                <code className="font-mono text-[11px] text-ink bg-chip px-2 py-0.5 rounded">
+                <code className="font-mono text-[11px] text-ink bg-chip px-2 py-0.5 rounded w-fit">
                   npm run keepalive
                 </code>
               </div>
@@ -194,14 +194,14 @@ export default function GatewaySettingsView({ config }: Props) {
                 </code>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="font-semibold text-ink-soft">Database Engine:</span>
-                <span className="font-mono font-bold text-ink bg-chip px-2.5 py-0.5 rounded-md">
+                <span className="font-mono font-bold text-ink bg-chip px-2.5 py-0.5 rounded-md w-fit">
                   {config.databaseEngine}
                 </span>
               </div>
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1">
                 <span className="font-semibold text-ink-soft">API Key Authentication:</span>
                 <span className={`font-semibold ${config.hasApiKey ? "text-success-fg" : "text-danger-fg"}`}>
                   {config.hasApiKey ? "Configured & Active" : "Missing from .env"}

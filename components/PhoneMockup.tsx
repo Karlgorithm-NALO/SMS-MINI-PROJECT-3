@@ -30,7 +30,7 @@ export default function PhoneMockup({
   }, [carrierName]);
 
   return (
-    <div className="flex flex-col items-center select-none w-full max-w-[380px]">
+    <div className="flex flex-col items-center select-none w-full max-w-full overflow-hidden px-1">
       {/* Realistic iPhone 18 Pro Max Frame with Titanium Rim & Hardware Buttons */}
       <div className="relative">
         {/* Left Hardware Buttons */}
@@ -63,7 +63,7 @@ export default function PhoneMockup({
         />
 
         {/* Outer Titanium Chassis */}
-        <div className="relative w-[340px] sm:w-[356px] h-[670px] rounded-[54px] p-[10px] bg-gradient-to-b from-[#484a4e] via-[#232426] to-[#121315] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.1)_inset]">
+        <div className="relative w-[300px] xs:w-[330px] sm:w-[356px] h-[640px] sm:h-[670px] rounded-[48px] sm:rounded-[54px] p-[8px] sm:p-[10px] bg-gradient-to-b from-[#484a4e] via-[#232426] to-[#121315] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.35),0_0_0_1px_rgba(255,255,255,0.1)_inset]">
           {/* Inner Titanium Chamfer Ring */}
           <div className="relative h-full w-full rounded-[44px] p-[4px] bg-gradient-to-b from-[#1a1b1d] to-[#0c0d0e] ring-1 ring-white/10 overflow-hidden flex flex-col">
             

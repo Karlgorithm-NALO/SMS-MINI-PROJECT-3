@@ -288,7 +288,8 @@ export default function TrafficCharts({ messages, stats }: Props) {
 
                   {/* Hour Axis Label */}
                   <span className="mt-2 text-[10px] font-mono text-ink-faint truncate group-hover:text-ink font-semibold">
-                    {slot.hourLabel}
+                    <span className="sm:hidden">{slot.hourLabel.split(":")[0]}h</span>
+                    <span className="hidden sm:inline">{slot.hourLabel}</span>
                   </span>
                 </div>
               );

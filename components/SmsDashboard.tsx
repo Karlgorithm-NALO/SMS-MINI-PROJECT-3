@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { AppConfig } from "@/lib/types";
 import BalanceSyncModal from "./BalanceSyncModal";
 import GatewaySettingsView from "./GatewaySettingsView";
-import { CoinsIcon, LogoMark } from "./icons";
+import { CoinsIcon, LogoMark, MessageSquareIcon, PaperPlaneIcon, SignalIcon, TableIcon } from "./icons";
 import MessageHistory from "./MessageHistory";
 import PhoneMockup from "./PhoneMockup";
 import SendSmsForm from "./SendSmsForm";
@@ -72,6 +72,7 @@ export default function SmsDashboard({ config }: Props) {
   const [messageCount, setMessageCount] = useState<number>(0);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [isBalanceModalOpen, setIsBalanceModalOpen] = useState(false);
+  const [showMobilePhonePreview, setShowMobilePhonePreview] = useState(false);
 
   // Restore active tab from URL hash, search param, or localStorage on mount
   useEffect(() => {
@@ -103,6 +104,9 @@ export default function SmsDashboard({ config }: Props) {
       localStorage.setItem("nalo_active_tab", newTab);
       window.history.replaceState(null, "", `#${newTab}`);
     } catch {}
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
   }, []);
 
   // Real-time phone preview state mirrored from SendSmsForm
@@ -171,13 +175,13 @@ export default function SmsDashboard({ config }: Props) {
       {/* 2. Main Content Canvas */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Bar Navigation & Quick Status */}
-        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-ink/[0.08] bg-surface/90 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
-          {/* Left: Mobile Toggle & Breadcrumbs */}
-          <div className="flex items-center gap-3">
+        <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-ink/[0.08] bg-surface/90 px-3.5 sm:px-6 lg:px-8 backdrop-blur-md">
+          {/* Left: Mobile Toggle, Brand & Breadcrumbs */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               type="button"
               onClick={() => setIsMobileOpen(true)}
-              className="rounded-xl p-2 text-ink-soft hover:bg-chip hover:text-ink md:hidden transition-colors"
+              className="rounded-xl p-2 text-ink-soft hover:bg-chip hover:text-ink md:hidden transition-colors shrink-0"
               aria-label="Open sidebar menu"
             >
               <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -185,28 +189,32 @@ export default function SmsDashboard({ config }: Props) {
               </svg>
             </button>
 
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 md:hidden shrink-0">
+              <LogoMark className="h-7 w-7" />
+            </div>
+
+            <div className="flex items-center gap-2 min-w-0">
               <span className="hidden sm:inline-block text-[11px] font-bold uppercase tracking-wider text-ink-faint">
                 Platform
               </span>
               <span className="hidden sm:inline-block text-ink-faint">/</span>
-              <h1 className="font-display text-base sm:text-lg font-bold tracking-tight text-ink truncate">
+              <h1 className="font-display text-sm sm:text-lg font-bold tracking-tight text-ink truncate max-w-[140px] xs:max-w-[190px] sm:max-w-none">
                 {TAB_TITLES[activeTab].title}
               </h1>
             </div>
           </div>
 
           {/* Right: Balance Pill & Gateway Status */}
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Quick Balance Pill */}
             <button
               type="button"
               onClick={() => setIsBalanceModalOpen(true)}
-              className="group flex items-center gap-2 rounded-full border border-accent/25 bg-accent-wash/70 px-3.5 py-1.5 text-xs transition-all hover:bg-accent-wash hover:border-accent/40 shadow-2xs"
+              className="group flex items-center gap-1.5 sm:gap-2 rounded-full border border-accent/25 bg-accent-wash/70 px-2.5 sm:px-3.5 py-1.5 text-xs transition-all hover:bg-accent-wash hover:border-accent/40 shadow-2xs"
               title="Click to view & sync live portal balance"
             >
               <CoinsIcon className="h-3.5 w-3.5 text-accent-deep" />
-              <span className="font-display font-bold text-ink">
+              <span className="font-display font-bold text-ink text-xs sm:text-sm">
                 GH₵ {formatCedi(numBalance)}
               </span>
               <span className="hidden lg:inline font-mono text-[11px] text-ink-soft">
@@ -232,10 +240,10 @@ export default function SmsDashboard({ config }: Props) {
         </header>
 
         {/* Dynamic Workspace Body */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8">
+        <main className="flex-1 p-3.5 sm:p-6 lg:p-8 pb-24 md:pb-8">
           <div className="mx-auto max-w-[88rem]">
             {/* Workspace Header Subtitle */}
-            <div className="mb-6">
+            <div className="mb-4 sm:mb-6">
               <p className="text-xs sm:text-sm text-ink-soft">
                 {TAB_TITLES[activeTab].subtitle}
               </p>
@@ -253,13 +261,32 @@ export default function SmsDashboard({ config }: Props) {
                   />
                 </div>
 
-                <div className="xl:col-span-5 flex flex-col items-center xl:sticky xl:top-24">
-                  <PhoneMockup
-                    senderId={phonePreviewState.senderId}
-                    message={phonePreviewState.message}
-                    phone={phonePreviewState.primaryPhone}
-                    carrierName={phonePreviewState.carrierName}
-                  />
+                <div className="xl:col-span-5 flex flex-col items-center xl:sticky xl:top-24 w-full">
+                  {/* Mobile Preview Toggle Accordion Banner */}
+                  <div className="xl:hidden w-full mb-4 rounded-2xl border border-ink/[0.08] bg-surface p-3.5 shadow-xs flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="font-display font-bold text-xs sm:text-sm text-ink">
+                        Live iPhone 18 Handset Preview
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setShowMobilePhonePreview((prev) => !prev)}
+                      className="rounded-xl bg-chip px-3 py-1 text-xs font-semibold text-ink hover:bg-chip-strong transition-colors"
+                    >
+                      {showMobilePhonePreview ? "Hide Preview ▲" : "Show Preview ▼"}
+                    </button>
+                  </div>
+
+                  <div className={`${showMobilePhonePreview ? "flex" : "hidden xl:flex"} w-full justify-center`}>
+                    <PhoneMockup
+                      senderId={phonePreviewState.senderId}
+                      message={phonePreviewState.message}
+                      phone={phonePreviewState.primaryPhone}
+                      carrierName={phonePreviewState.carrierName}
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -313,6 +340,51 @@ export default function SmsDashboard({ config }: Props) {
           setRefreshTrigger((prev) => prev + 1);
         }}
       />
+
+      {/* 4. Mobile Bottom Navigation Bar */}
+      <nav
+        aria-label="Mobile Navigation"
+        className="fixed bottom-0 inset-x-0 z-40 border-t border-ink/[0.08] bg-surface/95 backdrop-blur-lg px-2 py-1.5 md:hidden shadow-lg pb-[max(0.375rem,env(safe-area-inset-bottom))]"
+      >
+        <div className="grid grid-cols-4 items-center justify-around">
+          {[
+            { id: "send" as TabId, label: "Compose", icon: PaperPlaneIcon },
+            { id: "logs" as TabId, label: "Logs", icon: TableIcon, badge: messageCount > 0 ? String(messageCount) : null },
+            { id: "analytics" as TabId, label: "Analytics", icon: MessageSquareIcon },
+            { id: "gateway" as TabId, label: "Gateway", icon: SignalIcon },
+          ].map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleTabChange(item.id)}
+                className={`relative flex flex-col items-center justify-center gap-0.5 py-1 px-1 rounded-xl transition-all ${
+                  isActive
+                    ? "text-accent font-bold"
+                    : "text-ink-soft hover:text-ink font-medium"
+                }`}
+              >
+                <div className="relative">
+                  <Icon className={`h-5 w-5 transition-transform ${isActive ? "scale-110" : ""}`} />
+                  {item.badge && (
+                    <span className="absolute -top-1 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[9px] font-bold text-white shadow-xs">
+                      {item.badge}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[10px] leading-tight tracking-tight">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <span className="h-1 w-1 rounded-full bg-accent" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }
