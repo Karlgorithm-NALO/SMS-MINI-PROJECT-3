@@ -1,6 +1,18 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { MAX_CSV_BYTES, checkCsvFile, formatPhoneNumber, normalizePhoneNumber, previewCsv } from "../lib/validate";
+import { MAX_CSV_BYTES, checkCsvFile, formatPhoneNumber, isDummyNumber, normalizePhoneNumber, previewCsv } from "../lib/validate";
+
+test("identifies dummy, unallocated, and test subscriber phone numbers", () => {
+  assert.equal(isDummyNumber("0590000000"), true);
+  assert.equal(isDummyNumber("233590000000"), true);
+  assert.equal(isDummyNumber("0500000000"), true);
+  assert.equal(isDummyNumber("233500000000"), true);
+  assert.equal(isDummyNumber("0541111111"), true);
+  assert.equal(isDummyNumber("233541111111"), true);
+  assert.equal(isDummyNumber("0558816150"), false);
+  assert.equal(isDummyNumber("233558816150"), false);
+  assert.equal(isDummyNumber("0257090832"), false);
+});
 
 test("accepts both phone formats and normalizes to 233", () => {
   assert.equal(normalizePhoneNumber("0241234567"), "233241234567");

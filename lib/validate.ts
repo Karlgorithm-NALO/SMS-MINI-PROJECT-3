@@ -114,6 +114,22 @@ export function formatPhoneNumber(phone: string): string {
 }
 
 /**
+ * Detects test, unallocated, or dummy subscriber numbers (e.g. 0590000000, 233590000000, 0500000000, 0541111111).
+ * GSM mobile networks do not route these to physical SIMs.
+ */
+export function isDummyNumber(recipient: string): boolean {
+  const clean = recipient.replace(/\D/g, "");
+  const subscriber = clean.slice(-7);
+  if (/^0{5,}$/.test(subscriber)) return true;
+  if (/^1{5,}$/.test(subscriber)) return true;
+  if (/^9{5,}$/.test(subscriber)) return true;
+  if (/^(\d)\1{5,}$/.test(subscriber)) return true;
+  if (subscriber === "1234567" || subscriber === "7654321") return true;
+  if (clean.endsWith("0000000") || clean.endsWith("1111111") || clean.endsWith("9999999")) return true;
+  return false;
+}
+
+/**
  * Live character counter and SMS segment calculator.
  * Standard GSM 7-bit: 160 characters for 1st segment; 153 characters per segment if multi-part.
  * Unicode (UCS-2): 70 characters for 1st segment; 67 characters per segment if multi-part.

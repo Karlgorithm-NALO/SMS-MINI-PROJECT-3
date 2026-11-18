@@ -1,6 +1,6 @@
-import { deductSmsCost, deductSmsCredits, getSmsRate, saveSentMessage } from "./db";
+import { deductSmsCost, deductSmsCredits, getSmsRate, saveSentMessage, updateMessageDelivery } from "./db";
 import type { SendRecipientResult, SendSmsResult } from "./types";
-import { calculateSmsSegments, parseRecipients } from "./validate";
+import { calculateSmsSegments, detectCarrier, isDummyNumber, parseRecipients } from "./validate";
 
 export const DEFAULT_NALO_ENDPOINT =
   "https://sms.nalosolutions.com/smsbackend/clientapi/Resl_Nalo/send-message/";
@@ -274,6 +274,39 @@ export async function sendNaloSms(params: {
         const smsRate = await getSmsRate();
         const recipientCost = Math.max(1, segmentCount) * smsRate;
         await deductSmsCost(recipientCost);
+
+        // Proactive dummy number expiry:
+        // Physical GSM networks cannot route to dummy/unallocated numbers (e.g. 0590000000).
+        // Standard GSM SMSC expires these, so resolve to FAILED (Code 201) after 6 seconds.
+        if (isDummyNumber(recipient)) {
+          const dummyMsgId = messageId;
+          const dummyRecipient = recipient;
+          const dummySenderId = params.senderId.trim();
+          setTimeout(async () => {
+            try {
+              const carrier = detectCarrier(dummyRecipient);
+              await updateMessageDelivery({
+                messageId: dummyMsgId,
+                status: "FAILED",
+                statusCode: "201",
+                description: "Carrier Error 201: Dummy / unallocated mobile subscriber",
+                recipient: dummyRecipient,
+                rawPayload: JSON.stringify({
+                  mid: dummyMsgId,
+                  msisdn: dummyRecipient,
+                  source: dummySenderId,
+                  network: carrier.name,
+                  status: "EXPIRED",
+                  status_code: "201",
+                  error: "Dummy / unallocated mobile subscriber",
+                  delivery_date: new Date().toISOString(),
+                }),
+              });
+            } catch (err) {
+              console.error("[DUMMY EXPIRY ERROR]", err);
+            }
+          }, 6000);
+        }
 
         // Status remains SUBMITTED until a real DLR callback arrives from the carrier
 
