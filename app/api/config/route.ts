@@ -14,15 +14,13 @@ export async function GET(req: NextRequest) {
   const senderIds = getAllowedSenderIds();
   const callbackUrl = await getCallbackUrl(requestHost);
   const callbackBaseUrl = await resolveCallbackBaseUrl(requestHost);
-  const apiKey = process.env.SMS_API_KEY?.trim() || "";
   const balance = await getSmsBalance();
 
   return NextResponse.json({
     senderIds,
     callbackBaseUrl,
     callbackEndpoint: callbackUrl || "/api/callback",
-    hasApiKey: Boolean(apiKey),
-    apiKeyPreview: apiKey ? `${apiKey.slice(0, 4)}...${apiKey.slice(-4)}` : null,
+    hasApiKey: Boolean(process.env.SMS_API_KEY?.trim()),
     databaseEngine: getDatabaseEngine(),
     balance,
   });

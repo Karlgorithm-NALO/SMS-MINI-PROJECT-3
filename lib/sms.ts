@@ -1,4 +1,4 @@
-import { deductSmsCost, deductSmsCredits, getSmsRate, saveSentMessage, updateMessageDelivery } from "./db";
+import { deductSmsCost, deductSmsCredits, getSmsRate, saveSentMessage } from "./db";
 import type { SendRecipientResult, SendSmsResult } from "./types";
 import { calculateSmsSegments, parseRecipients } from "./validate";
 
@@ -107,40 +107,12 @@ export function getCallbackUrlSync(): string | null {
 }
 
 /**
- * Automatically reconciles delivered status if carrier webhook callback is delayed.
- * Ensures the platform always shows fast, reliable delivery feedback to the user.
+ * NOTE: Auto-reconciliation has been removed.
+ * Delivery status is now determined ONLY by real carrier DLR callbacks
+ * received at /api/callback. Messages remain as SUBMITTED until Nalo's
+ * gateway sends an actual delivery report from the mobile network operator.
+ * This is the correct, honest behavior for a production SMS platform.
  */
-export function scheduleAutoDeliveryReconciliation(params: {
-  messageId: string;
-  recipient: string;
-  senderId: string;
-  delayMs?: number;
-}) {
-  const delay = params.delayMs ?? 4000;
-  setTimeout(async () => {
-    try {
-      await updateMessageDelivery({
-        messageId: params.messageId,
-        status: "DELIVRD",
-        statusCode: "000",
-        description: "Delivered to handset via mobile network",
-        recipient: params.recipient,
-        rawPayload: JSON.stringify({
-          mid: params.messageId,
-          msisdn: params.recipient,
-          source: params.senderId,
-          network: "MTN",
-          status: "DELIVRD",
-          status_code: "000",
-          delivery_date: new Date().toISOString(),
-        }),
-      });
-      console.log(`[AUTO-DLR RECONCILIATION]: Auto-confirmed delivery for ${params.messageId}`);
-    } catch (err) {
-      console.error("[AUTO-DLR ERROR]:", err);
-    }
-  }, delay);
-}
 
 /**
  * Nalo Solutions SMS error map.
@@ -279,13 +251,7 @@ export async function sendNaloSms(params: {
         const recipientCost = Math.max(1, segmentCount) * smsRate;
         await deductSmsCost(recipientCost);
 
-        // Auto-reconcile delivery after 4 seconds to guarantee fast, reliable feedback
-        scheduleAutoDeliveryReconciliation({
-          messageId,
-          recipient,
-          senderId: params.senderId.trim(),
-          delayMs: 4000,
-        });
+        // Status remains SUBMITTED until a real DLR callback arrives from the carrier
 
         results.push({
           recipient,
