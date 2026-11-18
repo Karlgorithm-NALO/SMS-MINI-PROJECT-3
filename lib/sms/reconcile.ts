@@ -56,10 +56,17 @@ export async function reconcilePendingMessages(now = Date.now()): Promise<{
   const sandboxRows = await execQuery(sbSql, sbParams);
   const sandboxResolved = sandboxRows.length;
 
-  // 2) Retry parked callbacks that arrived before their message could be matched
+  // 2) Sanitize delivered rows: DELIVRD messages must never retain residual error messages
+  await execQuery(
+    `UPDATE messages
+     SET error_message = NULL
+     WHERE status = 'DELIVRD' AND error_message IS NOT NULL`
+  );
+
+  // 3) Retry parked callbacks that arrived before their message could be matched
   const eventsApplied = await retryParkedEvents(now);
 
-  // 3) Expire real messages past their full SMSC validity period + grace
+  // 4) Expire real messages past their full SMSC validity period + grace
   //    (Marked EXPIRED with status_source = 'ttl'; late DELIVRD can still override)
   const failedIso = new Date(now).toISOString();
   const expiredRows = await execQuery(
